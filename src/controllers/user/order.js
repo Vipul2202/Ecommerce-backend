@@ -5,6 +5,7 @@ const Product = require("../../models/admin/product");
 const mongoose = require('mongoose');
 const utils = require("../../utils/utils");
 const User = require('../../models/user');
+const { getAdminNewBookingEmail } = require('../../../public/Email Templates/forgotpassword');
 
  exports.placeOrder = async (req, res) => {
   try {
@@ -89,6 +90,89 @@ const User = require('../../models/user');
         phone
       }
     });
+     const orders = await Order.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(order._id) }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userDetails",
+          pipeline:[
+            {
+              $project:{
+                password:0
+              }
+            }
+          ]
+        }
+      },
+      { $unwind: "$userDetails" },
+      {
+        $unwind: "$items"
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.product",
+          foreignField: "_id",
+          as: "productDetails"
+        }
+      },
+      { $unwind: "$productDetails" },
+      {
+        $lookup: {
+          from: "categories", // Make sure your category collection is pluralized correctly
+          localField: "productDetails.category",
+          foreignField: "_id",
+          as: "categoryDetails"
+        }
+      },
+      { $unwind: "$categoryDetails" },
+      {
+        $addFields: {
+          "items.product": {
+            _id: "$productDetails._id",
+            name: "$productDetails.name",
+            image: "$productDetails.image",
+            price: "$productDetails.price",
+            category: "$categoryDetails"
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          user: { $first: "$user" },
+          userDetails: { $first: "$userDetails" },
+          items: { $push: "$items" },
+          totalAmount: { $first: "$totalAmount" },
+          shippingAddress: { $first: "$shippingAddress" },
+          shippingStatus: { $first: "$shippingStatus" },
+          paidAt: { $first: "$paidAt" },
+          deliveredAt: { $first: "$deliveredAt" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" }
+        }
+      }
+    ]);
+    console.log("hghcghcgh",orders[0])
+    const html = getAdminNewBookingEmail(orders[0]);
+        const adminemail=process.env.ADMIN_EMAIL
+        console.log("adminemail",adminemail);
+    
+        await sendEmail({
+          to: process.env.ADMIN_EMAIL,
+          subject: "You have a new booking",
+          html,
+        });
+
+
+
+
+
 
    
 

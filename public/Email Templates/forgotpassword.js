@@ -249,7 +249,8 @@ exports.getAdminNewBookingEmail = (booking) => {
     last_name,
     email,
     phone,
-    booking_status
+    booking_status,
+    link,
   } = booking;
 
   return `
@@ -278,6 +279,13 @@ exports.getAdminNewBookingEmail = (booking) => {
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td><strong style="color: #ffc107;">${booking_status}</strong></td></tr>
             </table>
+
+            <div style="margin-top: 40px; text-align: center;">
+              <a href="${link}" style="background-color: #28a745; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Confirm Booking
+              </a>
+            </div>
+
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
               Please review and take any necessary actions in your admin dashboard.
             </p>
@@ -292,6 +300,104 @@ exports.getAdminNewBookingEmail = (booking) => {
     </div>
   `;
 };
+
+exports.getAdminNewPurchaseOrderEmail = (order) => {
+  const {
+    _id,
+    userDetails,
+    items,
+    totalAmount,
+    shippingAddress,
+    shippingStatus,
+    paidAt,
+    deliveredAt,
+    createdAt,
+  } = order;
+
+  const formattedItems = items
+    .map(
+      (item, index) => `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${index + 1}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">
+            <img src="${item.product.image}" alt="${item.product.name}" width="50" style="margin-right: 10px; vertical-align: middle;" />
+            ${item.product.name}<br/>
+            <small style="color: #888;">Category: ${item.product.category.name}</small>
+          </td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${item.product.price.toFixed(2)}</td>
+        </tr>
+      `
+    )
+    .join('');
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 700px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #007bff; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 22px;">New Purchase Order Received</h1>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hello Admin,</p>
+            <p style="font-size: 15px; color: #555;">
+              A new purchase order has been submitted with the following details:
+            </p>
+
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Order ID:</strong></td><td>${_id}</td></tr>
+              <tr><td><strong>Customer Name:</strong></td><td>${userDetails.name || 'N/A'}</td></tr>
+              <tr><td><strong>Customer Email:</strong></td><td>${userDetails.email || 'N/A'}</td></tr>
+              <tr><td><strong>Order Date:</strong></td><td>${new Date(createdAt).toLocaleDateString()}</td></tr>
+              <tr><td><strong>Shipping Status:</strong></td><td><strong style="color: #ffc107;">${shippingStatus}</strong></td></tr>
+            </table>
+
+            <h3 style="margin-top: 30px; font-size: 18px;">Shipping Address</h3>
+            <p style="font-size: 14px; color: #444;">
+              ${shippingAddress.fullName},<br/>
+              ${shippingAddress.address}, ${shippingAddress.city}, ${shippingAddress.state} - ${shippingAddress.postalCode},<br/>
+              ${shippingAddress.country}<br/>
+              Phone: ${shippingAddress.phone}
+            </p>
+
+            <h3 style="margin-top: 30px; font-size: 18px;">Order Items</h3>
+            <table width="100%" style="border-collapse: collapse; margin-top: 10px;">
+              <thead>
+                <tr style="background-color: #f8f9fa;">
+                  <th style="padding: 8px; border: 1px solid #ddd;">#</th>
+                  <th style="padding: 8px; border: 1px solid #ddd;">Product</th>
+                  <th style="padding: 8px; border: 1px solid #ddd;">Qty</th>
+                  <th style="padding: 8px; border: 1px solid #ddd;">Unit Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${formattedItems}
+              </tbody>
+            </table>
+
+            <h3 style="margin-top: 30px; font-size: 18px; text-align: right;">
+              Total: ₹${totalAmount.toFixed(2)}
+            </h3>
+
+            <p style="margin-top: 30px; font-size: 14px; color: #777;">
+              Please process this order in your admin dashboard.
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} Your App. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
 
 
 

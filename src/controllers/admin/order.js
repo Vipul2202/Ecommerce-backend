@@ -90,3 +90,84 @@ exports.getAllOrders = async (req, res) => {
     utils.handleError(res, error);
   }
 };
+exports.getOrder=async(req,res)=>{
+  try {
+    const id=req.params.id
+     const orders = await Order.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(id) }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userDetails",
+          pipeline:[
+            {
+              $project:{
+                password:0
+              }
+            }
+          ]
+        }
+      },
+      { $unwind: "$userDetails" },
+      {
+        $unwind: "$items"
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.product",
+          foreignField: "_id",
+          as: "productDetails"
+        }
+      },
+      { $unwind: "$productDetails" },
+      {
+        $lookup: {
+          from: "categories", // Make sure your category collection is pluralized correctly
+          localField: "productDetails.category",
+          foreignField: "_id",
+          as: "categoryDetails"
+        }
+      },
+      { $unwind: "$categoryDetails" },
+      {
+        $addFields: {
+          "items.product": {
+            _id: "$productDetails._id",
+            name: "$productDetails.name",
+            image: "$productDetails.image",
+            price: "$productDetails.price",
+            category: "$categoryDetails"
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          user: { $first: "$user" },
+          userDetails: { $first: "$userDetails" },
+          items: { $push: "$items" },
+          totalAmount: { $first: "$totalAmount" },
+          shippingAddress: { $first: "$shippingAddress" },
+          shippingStatus: { $first: "$shippingStatus" },
+          paidAt: { $first: "$paidAt" },
+          deliveredAt: { $first: "$deliveredAt" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      message: "Orders fetched successfully",
+      data: orders[0]
+    });
+    
+  } catch (error) {
+    utils.handleError(res, error);
+  }
+}

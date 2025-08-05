@@ -6,6 +6,7 @@ const Auth=require('../../middleware/auth')
 
 // router.get("/get-orders",Auth,trimRequest.all,controller.getAllOrders)
 router.get("/get-orders",trimRequest.all,controller.getAllOrders)
+router.get("/get-order/:id",trimRequest.all,controller.getOrder)
 
 
 
