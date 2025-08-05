@@ -57,7 +57,7 @@ exports.confirmBooking = async (req, res) => {
       email: booking.email,
       phone: booking.phone,
       booking_status: booking.booking_status,
-      link:`${process.env.USER_FRONTEND_URL}user/confirm-booking/${booking_id}`
+      link:`${process.env.USER_FRONTEND_URL}useForm/${booking_id}`
 
     };
 
