@@ -24,6 +24,9 @@ exports.sendEmail = async ({ to, subject, html }) => {
     return true;
   } catch (error) {
     console.error('Email send error:', error);
+    
+    // Don't throw the error, just return false to prevent booking failure
+    // The booking should still be created even if email fails
     return false;
   }
 };
