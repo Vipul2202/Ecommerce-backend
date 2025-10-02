@@ -15,35 +15,32 @@ const logEmail = (level, message, data = null) => {
 
 // Send email using Resend API (bypasses DigitalOcean SMTP blocking)
 const sendEmailViaResend = async (emailData) => {
-  try {
-    logEmail('INFO', 'Sending email via Resend API...');
-    
-    const { data, error } = await resend.emails.send({
-      from: 'Car Salon <onboarding@resend.dev>', // You can change this to your verified domain
-      to: [emailData.to],
-      subject: emailData.subject,
-      html: emailData.html,
-    });
-
-    if (error) {
-      logEmail('ERROR', 'Resend API error:', error);
-      throw new Error(`Resend API error: ${error.message}`);
-    }
-
-    logEmail('SUCCESS', 'Email sent successfully via Resend API:', {
-      id: data.id,
-      to: emailData.to
-    });
-    
-    return true;
-    
-  } catch (error) {
+  logEmail('INFO', 'Sending email via Resend API...');
+  
+  const { data, error } = await resend.emails.send({
+    from: 'Car Salon <onboarding@resend.dev>', // You can change this to your verified domain
+    to: [emailData.to],
+    subject: emailData.subject,
+    html: emailData.html,
+  }).catch((error) => {
     logEmail('ERROR', 'Resend API email send failed:', {
       message: error.message,
       stack: error.stack
     });
     throw error;
+  });
+
+  if (error) {
+    logEmail('ERROR', 'Resend API error:', error);
+    throw new Error(`Resend API error: ${error.message}`);
   }
+
+  logEmail('SUCCESS', 'Email sent successfully via Resend API:', {
+    id: data.id,
+    to: emailData.to
+  });
+  
+  return true;
 };
 
 // Get Zoho Mail API access token using refresh_token (Authorization Code flow)
@@ -66,17 +63,14 @@ const getZohoAccessToken = async () => {
     refresh_token: process.env.ZOHO_REFRESH_TOKEN,
   });
 
-  let response;
-  try {
-    response = await axios.post(tokenUrl, params).catch((error) => { throw error; });
-  } catch (error) {
+  const response = await axios.post(tokenUrl, params).catch((error) => {
     logEmail('ERROR', 'Failed to refresh Zoho access token:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data
     });
     throw error;
-  }
+  });
 
   const accessToken = response?.data?.access_token;
   if (!accessToken) {
@@ -93,7 +87,7 @@ const getZohoApiBase = () => {
   // If explicitly provided, use it
   if (process.env.ZOHO_API_BASE) return process.env.ZOHO_API_BASE.replace(/\/$/, '');
   // Derive from accounts base (supports AU/EU/IN)
-  const accountsBase = (process.env.ZOHO_ACCOUNTS_BASE || 'https://accounts.zoho.com').toLowerCase();
+  const accountsBase = String(process.env.ZOHO_ACCOUNTS_BASE || 'https://accounts.zoho.com').toLowerCase();
   if (accountsBase.includes('com.au')) return 'https://mail.zoho.com.au/api';
   if (accountsBase.includes('zoho.eu')) return 'https://mail.zoho.eu/api';
   if (accountsBase.includes('zoho.in')) return 'https://mail.zoho.in/api';
@@ -104,13 +98,21 @@ const getZohoApiBase = () => {
 const getZohoAccountId = async (accessToken) => {
   const apiBase = getZohoApiBase();
   const url = `${apiBase}/accounts`;
+  
   const response = await axios.get(url, {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` }
-  }).catch((error) => { throw error; });
+  }).catch((error) => {
+    logEmail('ERROR', 'Failed to get Zoho account ID:', {
+      message: error.message,
+      status: error.response?.status
+    });
+    throw error;
+  });
+  
   const accounts = response?.data?.data || [];
-  const fromAddress = (process.env.EMAIL_USER || '').toLowerCase();
+  const fromAddress = String(process.env.EMAIL_USER || '').toLowerCase();
   // Prefer exact match to fromAddress, else default account, else first
-  const exact = accounts.find(a => (a?.emailAddress || '').toLowerCase() === fromAddress);
+  const exact = accounts.find(a => String(a?.emailAddress || '').toLowerCase() === fromAddress);
   if (exact?.accountId) return exact.accountId;
   const def = accounts.find(a => a?.isDefault === true) || accounts[0];
   return def?.accountId;
@@ -141,41 +143,49 @@ const sendEmailViaZohoAPI = async (emailData) => {
 
   // Try posting to /messages directly first (works in some orgs)
   for (const base of candidateBases) {
-    try {
-      const url = `${base}/messages`;
-      const response = await axios.post(url, apiPayload, {
-        headers: {
-          'Authorization': `Zoho-oauthtoken ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    const url = `${base}/messages`;
+    const response = await axios.post(url, apiPayload, {
+      headers: {
+        'Authorization': `Zoho-oauthtoken ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    }).catch((error) => {
+      const code = error.response?.data?.data?.errorCode || error.response?.status;
+      logEmail('INFO', `Direct /messages failed on ${base}:`, { code, desc: error.response?.data?.status?.description });
+      return null; // Return null to indicate failure, continue to next base
+    });
+    
+    if (response) {
       logEmail('SUCCESS', `Email sent via Zoho API at ${base}/messages:`, {
         messageId: response.data.data?.messageId,
         status: response.status
       });
       return true;
-    } catch (error) {
-      const code = error.response?.data?.data?.errorCode || error.response?.status;
-      logEmail('INFO', `Direct /messages failed on ${base}:`, { code, desc: error.response?.data?.status?.description });
-      if (code !== 'URL_RULE_NOT_CONFIGURED') continue; // then we’ll try account-scoped
     }
   }
 
   // If /messages not allowed, resolve accountId (requires ZohoMail.accounts.READ)
   let accountId;
   for (const base of candidateBases) {
-    try {
-      const urlAcc = `${base}/accounts`;
-      const resAcc = await axios.get(urlAcc, { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } });
-      const accounts = resAcc?.data?.data || [];
-      const fromLower = (process.env.EMAIL_USER || '').toLowerCase();
-      const exact = accounts.find(a => (a?.emailAddress || '').toLowerCase() === fromLower);
-      const chosen = exact || accounts.find(a => a?.isDefault) || accounts[0];
-      if (chosen?.accountId) { accountId = chosen.accountId; break; }
-    } catch (error) {
+    const urlAcc = `${base}/accounts`;
+    const resAcc = await axios.get(urlAcc, { 
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } 
+    }).catch((error) => {
       logEmail('INFO', 'Fetching accounts failed (scope ZohoMail.accounts.READ may be required):', {
         status: error.response?.status, code: error.response?.data?.data?.errorCode
       });
+      return null;
+    });
+    
+    if (resAcc) {
+      const accounts = resAcc?.data?.data || [];
+      const fromLower = String(process.env.EMAIL_USER || '').toLowerCase();
+      const exact = accounts.find(a => String(a?.emailAddress || '').toLowerCase() === fromLower);
+      const chosen = exact || accounts.find(a => a?.isDefault) || accounts[0];
+      if (chosen?.accountId) { 
+        accountId = chosen.accountId; 
+        break; 
+      }
     }
   }
 
@@ -185,23 +195,25 @@ const sendEmailViaZohoAPI = async (emailData) => {
   }
 
   for (const base of candidateBases) {
-    try {
-      const url = `${base}/accounts/${accountId}/messages`;
-      const response = await axios.post(url, apiPayload, {
-        headers: {
-          'Authorization': `Zoho-oauthtoken ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+    const url = `${base}/accounts/${accountId}/messages`;
+    const response = await axios.post(url, apiPayload, {
+      headers: {
+        'Authorization': `Zoho-oauthtoken ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    }).catch((error) => {
+      logEmail('INFO', `Account-scoped send failed on ${base}:`, {
+        status: error.response?.status, code: error.response?.data?.data?.errorCode
       });
+      return null;
+    });
+    
+    if (response) {
       logEmail('SUCCESS', `Email sent via Zoho API at ${url}:`, {
         messageId: response.data.data?.messageId,
         status: response.status
       });
       return true;
-    } catch (error) {
-      logEmail('INFO', `Account-scoped send failed on ${base}:`, {
-        status: error.response?.status, code: error.response?.data?.data?.errorCode
-      });
     }
   }
 
