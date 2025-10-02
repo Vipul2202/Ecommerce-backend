@@ -160,14 +160,24 @@ const { getAdminNewBookingEmail } = require('../../../public/Email Templates/for
     ]);
     console.log("hghcghcgh",orders[0])
     const html = getAdminNewBookingEmail(orders[0]);
-        const adminemail=process.env.ADMIN_EMAIL
-        console.log("adminemail",adminemail);
-    
+    const adminemail = process.env.ADMIN_EMAIL;
+    console.log("adminemail", adminemail);
+
+    // Check if ADMIN_EMAIL is configured
+    if (adminemail) {
+      try {
         await sendEmail({
-          to: process.env.ADMIN_EMAIL,
+          to: adminemail,
           subject: "You have a new booking",
           html,
         });
+      } catch (error) {
+        console.error('Failed to send admin notification email:', error);
+        // Continue with the response even if email fails
+      }
+    } else {
+      console.error('ADMIN_EMAIL environment variable is not set');
+    }
 
 
 

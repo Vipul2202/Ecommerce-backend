@@ -10,11 +10,23 @@ app.use(express.json());
 // If you're using form-urlencoded data as well:
 app.use(express.urlencoded({ extended: true }));
 const corsOptions = {
-  origin: "*",
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-  // preflightContinue: false,
-  // optionsSuccessStatus: 204,
-  allowedHeaders: "Content-Type, Authorization, X-Requested-With",
+  origin: [
+    "https://carsaloon.com.au",
+    "https://www.carsaloon.com.au",
+    "http://localhost:3000",
+    "http://localhost:5173", 
+    "http://localhost:5174",
+    "http://localhost:4173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:4173"
+  ],
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
 app.use(
@@ -27,6 +39,15 @@ app.use('/user', userRoutes)
 app.use('/admin', adminRoutes)
 app.get("/", (req, res) => {
   return res.send("Welcome to Inlinkpay E-commerce Backend");
+});
+
+// CORS test endpoint
+app.get("/test-cors", (req, res) => {
+  res.json({ 
+    message: "CORS is working!", 
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin 
+  });
 });
 app.listen(process.env.PORT || 5000, () => {
   console.log("****************************1111");

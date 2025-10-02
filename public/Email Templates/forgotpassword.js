@@ -94,26 +94,48 @@ exports.getWelcomeEmail = (username, email, password) => {
   `;
 };
 exports.getBookingConfirmationEmail = (username, confirmationLink) => {
+  const isConfirmed = !confirmationLink;
+  const title = isConfirmed ? "Booking Confirmed!" : "Booking Confirmation";
+  const backgroundColor = isConfirmed ? "#28a745" : "#007bff";
+  
+  let content = '';
+  if (isConfirmed) {
+    content = `
+      <p style="font-size: 16px; color: #333;">Hello <strong>${username}</strong>,</p>
+      <p style="font-size: 15px; color: #555;">
+        Great news! Your booking has been confirmed by our team. We look forward to serving you.
+      </p>
+      <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #e8f5e8; border-radius: 8px;">
+        <h3 style="color: #28a745; margin: 0;">✅ Your booking is confirmed!</h3>
+        <p style="margin: 10px 0 0 0; color: #555;">We'll see you soon!</p>
+      </div>
+    `;
+  } else {
+    content = `
+      <p style="font-size: 16px; color: #333;">Hello <strong>${username}</strong>,</p>
+      <p style="font-size: 15px; color: #555;">
+        Your booking has been created successfully! Please confirm your booking by clicking the button below.
+      </p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${confirmationLink}" style="background-color: #007bff; color: #ffffff; padding: 12px 24px; font-size: 16px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Confirm Your Booking
+        </a>
+      </div>
+      <p style="font-size: 14px; color: #999;">If you didn't make this booking, you can safely ignore this email.</p>
+    `;
+  }
+
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
         <tr>
-          <td style="padding: 20px 30px; background-color: #28a745; color: #ffffff;">
-            <h1 style="margin: 0; font-size: 24px;">Booking Confirmation</h1>
+          <td style="padding: 20px 30px; background-color: ${backgroundColor}; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">${title}</h1>
           </td>
         </tr>
         <tr>
           <td style="padding: 30px;">
-            <p style="font-size: 16px; color: #333;">Hello <strong>${username}</strong>,</p>
-            <p style="font-size: 15px; color: #555;">
-              Your booking has been created successfully! Please confirm your booking by clicking the button below.
-            </p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${confirmationLink}" style="background-color: #28a745; color: #ffffff; padding: 12px 24px; font-size: 16px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Confirm Your Booking
-              </a>
-            </div>
-            <p style="font-size: 14px; color: #999;">If you didn’t make this booking, you can safely ignore this email.</p>
+            ${content}
           </td>
         </tr>
         <tr>
@@ -160,8 +182,8 @@ exports.getBookingApprovalEmail = (booking) => {
               <tr><td><strong>Car Type:</strong></td><td>${car_type}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services.join(', ')}</td></tr>
-              <tr><td><strong>Booking Date:</strong></td><td>${new Date(booking_date).toLocaleDateString()}</td></tr>
-              <tr><td><strong>Booking Time:</strong></td><td>${new Date(booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td></tr>
+              <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td style="color: green;"><strong>${booking_status}</strong></td></tr>
@@ -216,8 +238,8 @@ exports.getBookingCancellationEmail = (booking) => {
               <tr><td><strong>Car Type:</strong></td><td>${car_type}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services.join(', ')}</td></tr>
-              <tr><td><strong>Booking Date:</strong></td><td>${new Date(booking_date).toLocaleDateString()}</td></tr>
-              <tr><td><strong>Booking Time:</strong></td><td>${new Date(booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td></tr>
+              <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td style="color: red;"><strong>${booking_status}</strong></td></tr>
@@ -272,8 +294,8 @@ exports.getAdminNewBookingEmail = (booking) => {
               <tr><td><strong>Car Type:</strong></td><td>${car_type}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services.join(', ')}</td></tr>
-              <tr><td><strong>Booking Date:</strong></td><td>${new Date(booking_date).toLocaleDateString()}</td></tr>
-              <tr><td><strong>Booking Time:</strong></td><td>${new Date(booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td></tr>
+              <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Customer Name:</strong></td><td>${first_name} ${last_name}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>

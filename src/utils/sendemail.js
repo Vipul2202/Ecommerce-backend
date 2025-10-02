@@ -2,6 +2,17 @@ const transporter = require('../config/mailier');
 
 exports.sendEmail = async ({ to, subject, html }) => {
   try {
+    // Validate required fields
+    if (!to) {
+      throw new Error('No recipients defined - "to" field is required');
+    }
+    if (!subject) {
+      throw new Error('Subject is required');
+    }
+    if (!html) {
+      throw new Error('HTML content is required');
+    }
+
     const info = await transporter.sendMail({
       from: 'car salon',
       to,

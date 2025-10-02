@@ -21,7 +21,7 @@ const bookingSchema=new mongoose.Schema({
         type:Date
     },
     booking_time:{
-        type:Date
+        type:String
     },
     first_name:{
         type:String

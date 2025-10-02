@@ -11,19 +11,54 @@ exports.createBooking=async(req,res)=>{
         console.log("booking_id",booking_id);
        
         console.log("data",data);
-        const booking=await Booking.create({...data,booking_id})
-       const confirmationLink=`http://localhost:9006/user/confirm-booking/${booking._id}`; 
-        const html=getBookingConfirmationEmail(data.first_name,confirmationLink)
-     const ress=   await sendEmail(
-      {
-        to:data.email,
-        subject: "Confirm your booking",
-        confirmationLink,
-        html
-      },
-      
-    );
-    console.log("ress",ress);
+        const booking=await Booking.create({
+            ...data,
+            booking_id,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            car_type: data.carType,
+            vehicle_registration: data.registration,
+            booking_date: data.date,
+            booking_time: data.time
+        })
+        
+        // Prepare data for admin notification
+        const adminNotificationData = {
+          booking_id: booking_id,
+          car_type: data.carType,
+          vehicle_registration: data.registration,
+          services: data.services,
+          booking_date: new Date(data.date), // Convert to Date object
+          booking_time: data.time, // Keep as string for time display
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          booking_status: 'pending',
+          link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`
+        };
+
+        const html = getAdminNewBookingEmail(adminNotificationData);
+        const adminemail = process.env.ADMIN_EMAIL || 'nik.05.jindal@gmail.com';
+        console.log("adminemail", adminemail);
+
+        // Check if ADMIN_EMAIL is configured
+        if (!adminemail) {
+          console.error('ADMIN_EMAIL environment variable is not set');
+          return res.status(500).json({ message: "Admin email not configured" });
+        }
+
+        try {
+          const ress = await sendEmail({
+            to: adminemail,
+            subject: "New Booking Request - Action Required",
+            html,
+          });
+          console.log("Admin notification sent:", ress);
+        } catch (error) {
+          console.error('Failed to send admin notification email:', error);
+          // Continue with the response even if email fails
+        }
         return res.status(201).json({message:"Booking created successfully",booking})
 
         
@@ -57,19 +92,24 @@ exports.confirmBooking = async (req, res) => {
       email: booking.email,
       phone: booking.phone,
       booking_status: booking.booking_status,
-      link:`${process.env.USER_FRONTEND_URL}useForm/${booking_id}`
+      link:`https://carsaloon.com.au/useForm/${booking_id}`
 
     };
 
-    const html = getAdminNewBookingEmail(datatosend);
-    const adminemail=process.env.ADMIN_EMAIL
-    console.log("adminemail",adminemail);
-
-    await sendEmail({
-      to: process.env.ADMIN_EMAIL,
-      subject: "You have a new booking",
-      html,
-    });
+    // Send confirmation email to user
+    const userConfirmationHtml = getBookingConfirmationEmail(`${booking.first_name} ${booking.last_name}`, null);
+    
+    try {
+      await sendEmail({
+        to: booking.email,
+        subject: "Your Booking Has Been Confirmed",
+        html: userConfirmationHtml,
+      });
+      console.log("User confirmation email sent successfully");
+    } catch (error) {
+      console.error('Failed to send user confirmation email:', error);
+      // Continue with the response even if email fails
+    }
 
 return res.status(200).send(`
   <!DOCTYPE html>
