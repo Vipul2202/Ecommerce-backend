@@ -80,43 +80,131 @@ const sendEmailViaZohoAPI = async (emailData) => {
   }
 };
 
-// Fallback SMTP function (for when API fails)
+// Enhanced SMTP function with multiple configurations and retry logic
 const sendEmailViaSMTP = async (emailData) => {
   const nodemailer = require('nodemailer');
   
-  logEmail('INFO', 'Falling back to SMTP...');
+  logEmail('INFO', 'Using SMTP for email delivery...');
   
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.zoho.com.au',
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER || 'info@carsaloon.com.au',
-      pass: process.env.EMAIL_PASS || 'kSXwtw5siPqP',
+  // Multiple SMTP configurations for DigitalOcean compatibility
+  const smtpConfigs = [
+    {
+      name: 'Zoho Mail SSL (Port 465)',
+      config: {
+        host: 'smtp.zoho.com.au',
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.EMAIL_USER || 'info@carsaloon.com.au',
+          pass: process.env.EMAIL_PASS || 'kSXwtw5siPqP',
+        },
+        connectionTimeout: 30000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        tls: {
+          rejectUnauthorized: false,
+          ciphers: 'SSLv3'
+        }
+      }
     },
-    connectionTimeout: 20000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-    tls: {
-      rejectUnauthorized: false
+    {
+      name: 'Zoho Mail STARTTLS (Port 587)',
+      config: {
+        host: 'smtp.zoho.com.au',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER || 'info@carsaloon.com.au',
+          pass: process.env.EMAIL_PASS || 'kSXwtw5siPqP',
+        },
+        connectionTimeout: 30000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        tls: {
+          rejectUnauthorized: false
+        }
+      }
+    },
+    {
+      name: 'Zoho Mail Alternative (Port 2525)',
+      config: {
+        host: 'smtp.zoho.com.au',
+        port: 2525,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER || 'info@carsaloon.com.au',
+          pass: process.env.EMAIL_PASS || 'kSXwtw5siPqP',
+        },
+        connectionTimeout: 30000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        tls: {
+          rejectUnauthorized: false,
+          ciphers: 'SSLv3'
+        }
+      }
     }
-  });
+  ];
 
-  try {
-    const info = await transporter.sendMail({
-      from: `Car Salon <${process.env.EMAIL_USER || 'info@carsaloon.com.au'}>`,
-      to: emailData.to,
-      subject: emailData.subject,
-      html: emailData.html,
-    });
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000;
 
-    logEmail('SUCCESS', 'SMTP fallback email sent:', info.messageId);
-    return true;
+  // Sleep function for retry delays
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Try each configuration
+  for (let configIndex = 0; configIndex < smtpConfigs.length; configIndex++) {
+    const { name, config } = smtpConfigs[configIndex];
     
-  } catch (error) {
-    logEmail('ERROR', 'SMTP fallback failed:', error.message);
-    throw error;
+    logEmail('INFO', `Trying ${name}...`);
+    
+    try {
+      const transporter = nodemailer.createTransport(config);
+      
+      // Test connection first
+      await transporter.verify();
+      logEmail('SUCCESS', `${name} connection verified`);
+      
+      // Try sending with retry logic
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          logEmail('INFO', `SMTP send attempt ${attempt}/${MAX_RETRIES} using ${name}`);
+          
+          const info = await transporter.sendMail({
+            from: `Car Salon <${process.env.EMAIL_USER || 'info@carsaloon.com.au'}>`,
+            to: emailData.to,
+            subject: emailData.subject,
+            html: emailData.html,
+          });
+
+          logEmail('SUCCESS', `Email sent successfully using ${name}:`, info.messageId);
+          return true;
+          
+        } catch (error) {
+          logEmail('ERROR', `${name} attempt ${attempt} failed:`, error.message);
+          
+          // Don't retry on certain errors
+          if (error.code === 'EAUTH' || error.code === 'EENVELOPE') {
+            logEmail('ERROR', 'Authentication or envelope error, trying next configuration');
+            break;
+          }
+          
+          // Wait before retrying (except on last attempt)
+          if (attempt < MAX_RETRIES) {
+            logEmail('INFO', `Waiting ${RETRY_DELAY}ms before retry...`);
+            await sleep(RETRY_DELAY);
+          }
+        }
+      }
+      
+    } catch (error) {
+      logEmail('ERROR', `${name} connection failed:`, error.message);
+      continue; // Try next configuration
+    }
   }
+  
+  logEmail('ERROR', 'All SMTP configurations failed');
+  throw new Error('All SMTP configurations failed');
 };
 
 // Main email sending function
@@ -137,50 +225,38 @@ exports.sendEmail = async ({ to, subject, html }) => {
 
   const emailData = { to, subject, html };
   
-  // Try Zoho Mail API first (bypasses DigitalOcean SMTP blocking)
-  if (process.env.ZOHO_CLIENT_ID && process.env.ZOHO_CLIENT_SECRET) {
-    try {
-      logEmail('INFO', `Zoho Mail API attempt to: ${to}`);
-      return await sendEmailViaZohoAPI(emailData);
-    } catch (error) {
-      logEmail('ERROR', 'Zoho API failed, trying SMTP fallback:', error.message);
-    }
-  } else {
-    logEmail('INFO', 'Zoho API credentials not configured, using SMTP...');
-  }
-
-  // Fallback to SMTP
+  // Use SMTP directly (Zoho Mail API requires complex OAuth setup)
   try {
-    logEmail('INFO', `SMTP fallback attempt to: ${to}`);
+    logEmail('INFO', `SMTP email attempt to: ${to}`);
     return await sendEmailViaSMTP(emailData);
   } catch (error) {
-    logEmail('ERROR', 'All email methods failed:', error.message);
+    logEmail('ERROR', 'SMTP email failed:', error.message);
     return false;
   }
 };
 
 // Test function
 exports.testEmailConfig = async () => {
-  console.log('Testing Zoho Mail API configuration...');
+  console.log('Testing SMTP configuration...');
   
   const testEmail = {
     to: 'nik.05.jindal@gmail.com',
-    subject: 'Zoho Mail API Test',
+    subject: 'SMTP Configuration Test',
     html: `
-      <h2>Zoho Mail API Test</h2>
-      <p>This email was sent using Zoho Mail API (bypassing SMTP).</p>
+      <h2>SMTP Test</h2>
+      <p>This email was sent using Zoho Mail SMTP.</p>
       <p>Time: ${new Date().toISOString()}</p>
       <p>Server: DigitalOcean Production</p>
-      <p>Method: Zoho Mail API</p>
+      <p>Method: Zoho Mail SMTP (Enhanced)</p>
     `
   };
 
   const result = await exports.sendEmail(testEmail);
   
   if (result) {
-    console.log('✅ Zoho Mail API test successful!');
+    console.log('✅ SMTP test successful!');
   } else {
-    console.log('❌ Zoho Mail API test failed');
+    console.log('❌ SMTP test failed');
   }
   
   return result;
