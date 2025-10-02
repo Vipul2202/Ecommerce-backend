@@ -10,7 +10,7 @@ const logEmail = (level, message, data = null) => {
 };
 
 // Create multiple transporter configurations for DigitalOcean compatibility
-const createTransporter = () => {
+const createTransporter = async () => {
   logEmail('INFO', 'Creating email transporter...');
   
   // Get credentials
@@ -172,21 +172,46 @@ const createTransporter = () => {
   return nodemailer.createTransport(zohoConfig);
 };
 
-const transporter = createTransporter();
+let transporter;
 
-// Test the connection with enhanced logging
-logEmail('INFO', 'Testing final transporter connection...');
-transporter.verify((error, success) => {
-  if (error) {
-    logEmail('ERROR', 'Final transporter verification failed:', {
-      message: error.message,
-      code: error.code,
-      command: error.command,
-      response: error.response
+// Initialize transporter asynchronously
+(async () => {
+  try {
+    transporter = await createTransporter();
+    
+    // Test the connection with enhanced logging
+    logEmail('INFO', 'Testing final transporter connection...');
+    transporter.verify((error, success) => {
+      if (error) {
+        logEmail('ERROR', 'Final transporter verification failed:', {
+          message: error.message,
+          code: error.code,
+          command: error.command,
+          response: error.response
+        });
+      } else {
+        logEmail('SUCCESS', 'Final transporter is ready to send messages');
+      }
     });
-  } else {
-    logEmail('SUCCESS', 'Final transporter is ready to send messages');
+  } catch (error) {
+    logEmail('ERROR', 'Failed to create transporter:', error);
+    // Fallback to basic Zoho configuration
+    transporter = nodemailer.createTransport({
+      host: 'smtp.zoho.com.au',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER || 'info@carsaloon.com.au',
+        pass: process.env.EMAIL_PASS || 'kSXwtw5siPqP',
+      },
+      connectionTimeout: 20000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
   }
-});
+})();
 
 module.exports = transporter;

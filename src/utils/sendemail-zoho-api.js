@@ -1,5 +1,7 @@
 const axios = require('axios');
-const nodemailer = require('nodemailer');
+
+// Zoho Mail API Configuration
+const ZOHO_API_BASE_URL = 'https://mail.zoho.com/api';
 
 // Enhanced logging function
 const logEmail = (level, message, data = null) => {
@@ -9,9 +11,6 @@ const logEmail = (level, message, data = null) => {
     console.log(`[${timestamp}] [EMAIL-${level}] Data:`, JSON.stringify(data, null, 2));
   }
 };
-
-// Zoho Mail API Configuration
-const ZOHO_API_BASE_URL = 'https://mail.zoho.com/api';
 
 // Get Zoho Mail API access token
 const getZohoAccessToken = async () => {
@@ -87,7 +86,7 @@ const sendEmailViaSMTP = async (emailData) => {
   
   logEmail('INFO', 'Falling back to SMTP...');
   
-  const transporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransporter({
     host: 'smtp.zoho.com.au',
     port: 465,
     secure: true,
@@ -120,103 +119,7 @@ const sendEmailViaSMTP = async (emailData) => {
   }
 };
 
-// Create SMTP transporter as fallback
-const createSMTPTransporter = () => {
-  // Zoho Mail Configuration (Primary - Port 465 with SSL)
-  const zohoConfig = {
-    host: 'smtp.zoho.com.au', // Updated from user's config
-    port: 465,
-    secure: true, // SSL
-    auth: {
-      user: process.env.EMAIL_USER || 'carsaloonperth@gmail.com',
-      pass: process.env.EMAIL_PASS || 'bftoktcwzyknaura',
-    },
-    connectionTimeout: 20000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-    tls: {
-      rejectUnauthorized: false
-    }
-  };
-
-  // Zoho Mail Port 587 (STARTTLS)
-  const zohoPort587Config = {
-    host: 'smtp.zoho.com.au', // Updated from user's config
-    port: 587,
-    secure: false, // STARTTLS
-    auth: {
-      user: process.env.EMAIL_USER || 'carsaloonperth@gmail.com',
-      pass: process.env.EMAIL_PASS || 'bftoktcwzyknaura',
-    },
-    connectionTimeout: 20000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-    tls: {
-      rejectUnauthorized: false
-    }
-  };
-
-  // Zoho Mail Alternative Port (2525 - Often not blocked)
-  const zohoAlternativeConfig = {
-    host: 'smtp.zoho.com.au', // Updated from user's config
-    port: 2525,
-    secure: false, // STARTTLS
-    auth: {
-      user: process.env.EMAIL_USER || 'carsaloonperth@gmail.com',
-      pass: process.env.EMAIL_PASS || 'bftoktcwzyknaura',
-    },
-    connectionTimeout: 20000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-    tls: {
-      rejectUnauthorized: false,
-      ciphers: 'SSLv3'
-    }
-  };
-
-  // Gmail Configuration (Fallback)
-  const gmailConfig = {
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER || 'carsaloonperth@gmail.com',
-      pass: process.env.EMAIL_PASS || 'bftoktcwzyknaura',
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
-    pool: true,
-    maxConnections: 3,
-    maxMessages: 50,
-    rateDelta: 10000,
-    rateLimit: 3,
-    secure: true,
-    port: 465,
-    tls: {
-      rejectUnauthorized: false
-    }
-  };
-
-  // Try configurations in order of preference
-  const configs = [zohoConfig, zohoPort587Config, zohoAlternativeConfig, gmailConfig];
-  
-  for (let i = 0; i < configs.length; i++) {
-    try {
-      console.log(`Trying SMTP configuration ${i + 1}/${configs.length}...`);
-      return nodemailer.createTransport(configs[i]);
-    } catch (error) {
-      console.log(`SMTP configuration ${i + 1} failed:`, error.message);
-      continue;
-    }
-  }
-  
-  // If all fail, return the first one anyway (will fail gracefully)
-  console.log('All SMTP configurations failed, using Zoho as fallback');
-  return nodemailer.createTransport(zohoConfig);
-};
-
-const smtpTransporter = createSMTPTransporter();
-
-// Enhanced email sending with Zoho Mail API (bypasses DigitalOcean SMTP blocking)
+// Main email sending function
 exports.sendEmail = async ({ to, subject, html }) => {
   // Validate required fields
   if (!to) {
@@ -256,7 +159,7 @@ exports.sendEmail = async ({ to, subject, html }) => {
   }
 };
 
-// Test function for Zoho Mail API
+// Test function
 exports.testEmailConfig = async () => {
   console.log('Testing Zoho Mail API configuration...');
   
