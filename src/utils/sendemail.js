@@ -1,7 +1,8 @@
 const axios = require('axios');
+const { Resend } = require('resend');
 
-// Zoho Mail API Configuration
-const ZOHO_API_BASE_URL = 'https://mail.zoho.com/api';
+// Resend API Configuration (works on DigitalOcean)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Enhanced logging function
 const logEmail = (level, message, data = null) => {
@@ -9,6 +10,39 @@ const logEmail = (level, message, data = null) => {
   console.log(`[${timestamp}] [EMAIL-${level}] ${message}`);
   if (data) {
     console.log(`[${timestamp}] [EMAIL-${level}] Data:`, JSON.stringify(data, null, 2));
+  }
+};
+
+// Send email using Resend API (bypasses DigitalOcean SMTP blocking)
+const sendEmailViaResend = async (emailData) => {
+  try {
+    logEmail('INFO', 'Sending email via Resend API...');
+    
+    const { data, error } = await resend.emails.send({
+      from: 'Car Salon <onboarding@resend.dev>', // You can change this to your verified domain
+      to: [emailData.to],
+      subject: emailData.subject,
+      html: emailData.html,
+    });
+
+    if (error) {
+      logEmail('ERROR', 'Resend API error:', error);
+      throw new Error(`Resend API error: ${error.message}`);
+    }
+
+    logEmail('SUCCESS', 'Email sent successfully via Resend API:', {
+      id: data.id,
+      to: emailData.to
+    });
+    
+    return true;
+    
+  } catch (error) {
+    logEmail('ERROR', 'Resend API email send failed:', {
+      message: error.message,
+      stack: error.stack
+    });
+    throw error;
   }
 };
 
@@ -225,38 +259,50 @@ exports.sendEmail = async ({ to, subject, html }) => {
 
   const emailData = { to, subject, html };
   
-  // Use SMTP directly (Zoho Mail API requires complex OAuth setup)
+  // Try Resend API first (bypasses DigitalOcean SMTP blocking)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      logEmail('INFO', `Resend API attempt to: ${to}`);
+      return await sendEmailViaResend(emailData);
+    } catch (error) {
+      logEmail('ERROR', 'Resend API failed, trying SMTP fallback:', error.message);
+    }
+  } else {
+    logEmail('INFO', 'Resend API key not configured, using SMTP...');
+  }
+
+  // Fallback to SMTP (may fail on DigitalOcean due to port blocking)
   try {
-    logEmail('INFO', `SMTP email attempt to: ${to}`);
+    logEmail('INFO', `SMTP fallback attempt to: ${to}`);
     return await sendEmailViaSMTP(emailData);
   } catch (error) {
-    logEmail('ERROR', 'SMTP email failed:', error.message);
+    logEmail('ERROR', 'All email methods failed:', error.message);
     return false;
   }
 };
 
 // Test function
 exports.testEmailConfig = async () => {
-  console.log('Testing SMTP configuration...');
+  console.log('Testing email configuration...');
   
   const testEmail = {
     to: 'nik.05.jindal@gmail.com',
-    subject: 'SMTP Configuration Test',
+    subject: 'Email Configuration Test',
     html: `
-      <h2>SMTP Test</h2>
-      <p>This email was sent using Zoho Mail SMTP.</p>
+      <h2>Email Test</h2>
+      <p>This email was sent using Resend API (bypasses DigitalOcean SMTP blocking).</p>
       <p>Time: ${new Date().toISOString()}</p>
       <p>Server: DigitalOcean Production</p>
-      <p>Method: Zoho Mail SMTP (Enhanced)</p>
+      <p>Method: Resend API + SMTP Fallback</p>
     `
   };
 
   const result = await exports.sendEmail(testEmail);
   
   if (result) {
-    console.log('✅ SMTP test successful!');
+    console.log('✅ Email test successful!');
   } else {
-    console.log('❌ SMTP test failed');
+    console.log('❌ Email test failed');
   }
   
   return result;
