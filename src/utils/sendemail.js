@@ -1,8 +1,4 @@
-const sgMail = require('@sendgrid/mail');
 const nodemailer = require('nodemailer');
-
-// Initialize SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Create SMTP transporter as fallback
 const createSMTPTransporter = () => {
@@ -100,7 +96,7 @@ const createSMTPTransporter = () => {
 
 const smtpTransporter = createSMTPTransporter();
 
-// Enhanced email sending with SendGrid primary and SMTP fallback
+// Enhanced email sending with Zoho Mail SMTP
 exports.sendEmail = async ({ to, subject, html }) => {
   // Validate required fields
   if (!to) {
@@ -116,34 +112,9 @@ exports.sendEmail = async ({ to, subject, html }) => {
     return false;
   }
 
-  // Try SendGrid first (best for DigitalOcean)
-  if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY !== 'your_sendgrid_api_key_here') {
-    try {
-      console.log(`SendGrid attempt to: ${to}`);
-      
-      const msg = {
-        to: to,
-        from: {
-          email: process.env.EMAIL_USER || 'carsaloonperth@gmail.com',
-          name: 'Car Salon'
-        },
-        subject: subject,
-        html: html,
-      };
+  console.log(`Zoho Mail SMTP attempt to: ${to}`);
 
-      const response = await sgMail.send(msg);
-      console.log(`✅ SendGrid email sent successfully:`, response[0].headers['x-message-id']);
-      return true;
-      
-    } catch (error) {
-      console.error(`SendGrid failed:`, error.message);
-      console.log('Falling back to SMTP...');
-    }
-  } else {
-    console.log('SendGrid API key not configured, using SMTP...');
-  }
-
-  // Fallback to SMTP with retry logic
+  // Zoho Mail SMTP with retry logic
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
 
@@ -152,24 +123,24 @@ exports.sendEmail = async ({ to, subject, html }) => {
 
   let lastError = null;
   
-  // Retry logic for SMTP
+  // Retry logic for Zoho Mail SMTP
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      console.log(`SMTP send attempt ${attempt}/${MAX_RETRIES} to: ${to}`);
+      console.log(`Zoho Mail SMTP send attempt ${attempt}/${MAX_RETRIES} to: ${to}`);
       
       const info = await smtpTransporter.sendMail({
-        from: 'Car Salon <car salon>',
+        from: `Car Salon <${process.env.EMAIL_USER || 'info@carsaloon.com.au'}>`,
         to,
         subject,
         html,
       });
 
-      console.log(`✅ SMTP email sent successfully on attempt ${attempt}:`, info.messageId);
+      console.log(`✅ Zoho Mail email sent successfully on attempt ${attempt}:`, info.messageId);
       return true;
       
     } catch (error) {
       lastError = error;
-      console.error(`SMTP send attempt ${attempt} failed:`, error.message);
+      console.error(`Zoho Mail SMTP send attempt ${attempt} failed:`, error.message);
       
       // Don't retry on certain errors
       if (error.code === 'EAUTH' || error.code === 'EENVELOPE') {
@@ -192,27 +163,28 @@ exports.sendEmail = async ({ to, subject, html }) => {
   return false;
 };
 
-// Test function for both SendGrid and SMTP
+// Test function for Zoho Mail SMTP
 exports.testEmailConfig = async () => {
-  console.log('Testing email configuration...');
+  console.log('Testing Zoho Mail SMTP configuration...');
   
   const testEmail = {
     to: 'nik.05.jindal@gmail.com',
-    subject: 'Email Configuration Test',
+    subject: 'Zoho Mail Configuration Test',
     html: `
-      <h2>Email Test</h2>
-      <p>This is a test email to verify email configuration.</p>
+      <h2>Zoho Mail Test</h2>
+      <p>This is a test email to verify Zoho Mail SMTP configuration.</p>
       <p>Time: ${new Date().toISOString()}</p>
       <p>Server: DigitalOcean Production</p>
+      <p>Provider: Zoho Mail SMTP</p>
     `
   };
 
   const result = await exports.sendEmail(testEmail);
   
   if (result) {
-    console.log('✅ Email test successful!');
+    console.log('✅ Zoho Mail test successful!');
   } else {
-    console.log('❌ Email test failed');
+    console.log('❌ Zoho Mail test failed');
   }
   
   return result;
