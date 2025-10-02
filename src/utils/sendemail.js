@@ -88,58 +88,83 @@ const getZohoAccessToken = async () => {
   return accessToken;
 };
 
+// Derive region-aware Zoho Mail API base
+const getZohoApiBase = () => {
+  // If explicitly provided, use it
+  if (process.env.ZOHO_API_BASE) return process.env.ZOHO_API_BASE.replace(/\/$/, '');
+  // Derive from accounts base (supports AU/EU/IN)
+  const accountsBase = (process.env.ZOHO_ACCOUNTS_BASE || 'https://accounts.zoho.com').toLowerCase();
+  if (accountsBase.includes('com.au')) return 'https://mail.zoho.com.au/api';
+  if (accountsBase.includes('zoho.eu')) return 'https://mail.zoho.eu/api';
+  if (accountsBase.includes('zoho.in')) return 'https://mail.zoho.in/api';
+  return 'https://mail.zoho.com/api';
+};
+
+// Get primary accountId for the configured mailbox
+const getZohoAccountId = async (accessToken) => {
+  const apiBase = getZohoApiBase();
+  const url = `${apiBase}/accounts`;
+  const response = await axios.get(url, {
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` }
+  }).catch((error) => { throw error; });
+  const accounts = response?.data?.data || [];
+  const fromAddress = (process.env.EMAIL_USER || '').toLowerCase();
+  // Prefer exact match to fromAddress, else default account, else first
+  const exact = accounts.find(a => (a?.emailAddress || '').toLowerCase() === fromAddress);
+  if (exact?.accountId) return exact.accountId;
+  const def = accounts.find(a => a?.isDefault === true) || accounts[0];
+  return def?.accountId;
+};
+
 // Send email using Zoho Mail API
 const sendEmailViaZohoAPI = async (emailData) => {
-  try {
-    logEmail('INFO', 'Sending email via Zoho Mail API...');
-    const apiBase = process.env.ZOHO_API_BASE || 'https://mail.zoho.com/api';
-    
-    const accessToken = await getZohoAccessToken().catch((error) => { throw error; });
-    
-    const apiPayload = {
-      fromAddress: process.env.EMAIL_USER || 'info@carsaloon.com.au',
-      toAddress: emailData.to,
-      subject: emailData.subject,
-      content: emailData.html,
-      mailFormat: 'html'
-    };
+  logEmail('INFO', 'Sending email via Zoho Mail API...');
+  const apiBase = getZohoApiBase();
 
-    let response;
-    try {
-      response = await axios.post(
-        `${apiBase}/messages`,
-        apiPayload,
-        {
-          headers: {
-            'Authorization': `Zoho-oauthtoken ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      ).catch((error) => { throw error; });
-    } catch (error) {
-      logEmail('ERROR', 'Zoho messages API call failed:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      throw error;
+  const accessToken = await getZohoAccessToken().catch((error) => {
+    logEmail('ERROR', 'Failed to obtain access token:', { message: error.message, status: error.response?.status });
+    throw error;
+  });
+
+  const accountId = await getZohoAccountId(accessToken).catch((error) => {
+    logEmail('ERROR', 'Failed to resolve Zoho accountId:', { message: error.message, status: error.response?.status, data: error.response?.data });
+    throw error;
+  });
+
+  if (!accountId) {
+    logEmail('ERROR', 'No Zoho accountId found for the configured email');
+    throw new Error('Zoho accountId not found');
+  }
+
+  const apiPayload = {
+    fromAddress: process.env.EMAIL_USER || 'info@carsaloon.com.au',
+    toAddress: emailData.to,
+    subject: emailData.subject,
+    content: emailData.html,
+    mailFormat: 'html'
+  };
+
+  const url = `${apiBase}/accounts/${accountId}/messages`;
+  const response = await axios.post(url, apiPayload, {
+    headers: {
+      'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json'
     }
-
-    logEmail('SUCCESS', 'Email sent successfully via Zoho API:', {
-      messageId: response.data.data?.messageId,
-      status: response.status
-    });
-    
-    return true;
-    
-  } catch (error) {
-    logEmail('ERROR', 'Zoho API email send failed:', {
+  }).catch((error) => {
+    logEmail('ERROR', 'Zoho messages API call failed:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data
     });
     throw error;
-  }
+  });
+
+  logEmail('SUCCESS', 'Email sent successfully via Zoho API:', {
+    messageId: response.data.data?.messageId,
+    status: response.status
+  });
+  
+  return true;
 };
 
 // SMTP path intentionally removed per deployment policy (DigitalOcean blocks SMTP). Using Zoho API / Resend only.
