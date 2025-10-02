@@ -1,41 +1,19 @@
-const transporter = require('./src/config/mailier');
-const { sendEmail } = require('./src/utils/sendemail');
+const { testEmailConfig } = require('./src/utils/sendemail');
 
 async function testEmail() {
-  console.log('Testing email configuration...');
+  console.log('Testing email configuration for DigitalOcean...');
+  console.log('=====================================');
   
   try {
-    // Test transporter verification
-    console.log('1. Testing transporter verification...');
-    await new Promise((resolve, reject) => {
-      transporter.verify((error, success) => {
-        if (error) {
-          console.error('Transporter verification failed:', error.message);
-          reject(error);
-        } else {
-          console.log('✅ Transporter verification successful');
-          resolve(success);
-        }
-      });
-    });
-
-    // Test actual email sending
-    console.log('2. Testing email sending...');
-    const result = await sendEmail({
-      to: 'nik.05.jindal@gmail.com',
-      subject: 'Test Email from DigitalOcean Server',
-      html: `
-        <h2>Email Test</h2>
-        <p>This is a test email from your DigitalOcean server.</p>
-        <p>Time: ${new Date().toISOString()}</p>
-        <p>Server: DigitalOcean Production</p>
-      `
-    });
-
+    // Test the new hybrid email system
+    const result = await testEmailConfig();
+    
     if (result) {
-      console.log('✅ Email sent successfully!');
+      console.log('✅ Email test completed successfully!');
+      console.log('📧 Check nik.05.jindal@gmail.com for the test email');
     } else {
-      console.log('❌ Email sending failed');
+      console.log('❌ Email test failed');
+      console.log('💡 Consider setting up SendGrid for DigitalOcean compatibility');
     }
 
   } catch (error) {
