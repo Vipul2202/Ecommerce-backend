@@ -5,38 +5,53 @@ const { sendEmail } = require("../../utils/sendemail");
 const utils = require("../../utils/utils");
 exports.createBooking=async(req,res)=>{
     try {
-        const data=req.body
-        console.log("dataaa",data);
+        console.log("=== RAW REQUEST BODY ===");
+        console.log("Type:", typeof req.body);
+        console.log("Is Array:", Array.isArray(req.body));
+        console.log("Content:", JSON.stringify(req.body, null, 2));
+        console.log("======================");
+        
+        // Handle if data comes as array (extract first element) or as object
+        let data = req.body;
+        if (Array.isArray(data) && data.length > 0) {
+            data = data[0];
+        }
+        console.log("Processed booking data:",JSON.stringify(data, null, 2));
         const booking_id= utils.generateBookingId()
-        console.log("booking_id",booking_id);
+        console.log("Generated booking_id:",booking_id);
        
-        console.log("data",data);
         const booking=await Booking.create({
-            ...data,
             booking_id,
             first_name: data.firstName,
             last_name: data.lastName,
             car_type: data.carType,
             vehicle_registration: data.registration,
+            services: data.services,
             booking_date: data.date,
-            booking_time: data.time
+            booking_time: data.time,
+            email: data.email,
+            phone: data.phone
         })
         
-        // Prepare data for admin notification
+        console.log("Saved booking to DB:", booking);
+        
+        // Prepare data for admin notification using saved booking object
         const adminNotificationData = {
-          booking_id: booking_id,
-          car_type: data.carType,
-          vehicle_registration: data.registration,
-          services: data.services,
-          booking_date: new Date(data.date), // Convert to Date object
-          booking_time: data.time, // Keep as string for time display
-          first_name: data.firstName,
-          last_name: data.lastName,
-          email: data.email,
-          phone: data.phone,
-          booking_status: 'pending',
+          booking_id: booking.booking_id,
+          car_type: booking.car_type,
+          vehicle_registration: booking.vehicle_registration,
+          services: booking.services,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          first_name: booking.first_name,
+          last_name: booking.last_name,
+          email: booking.email,
+          phone: booking.phone,
+          booking_status: booking.booking_status,
           link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`
         };
+        
+        console.log("Admin notification data:", adminNotificationData);
 
         const html = getAdminNewBookingEmail(adminNotificationData);
         const adminemail = process.env.ADMIN_EMAIL || 'nik.05.jindal@gmail.com';
@@ -99,16 +114,21 @@ exports.confirmBooking = async (req, res) => {
     // Send confirmation email to user
     const userConfirmationHtml = getBookingConfirmationEmail(`${booking.first_name} ${booking.last_name}`, null);
     
-    try {
+    // Debug log to check email value
+    console.log("User email for confirmation:", booking.email);
+    
+    if (booking.email) {
       await sendEmail({
         to: booking.email,
         subject: "Your Booking Has Been Confirmed",
         html: userConfirmationHtml,
+      }).catch((error) => {
+        console.error('Failed to send user confirmation email:', error);
+        // Continue with the response even if email fails
       });
-      console.log("User confirmation email sent successfully");
-    } catch (error) {
-      console.error('Failed to send user confirmation email:', error);
-      // Continue with the response even if email fails
+      console.log("User confirmation email sent successfully to:", booking.email);
+    } else {
+      console.error('Cannot send confirmation email: booking.email is missing');
     }
 
 return res.status(200).send(`
