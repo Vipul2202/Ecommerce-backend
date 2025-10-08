@@ -33,7 +33,7 @@ const bookingSchema=new mongoose.Schema({
         type:String
     },
     phone:{
-        type:Number
+        type:String
     },
     is_verified:{
         type:Boolean,

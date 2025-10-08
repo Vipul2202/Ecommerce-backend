@@ -17,20 +17,98 @@ exports.createBooking=async(req,res)=>{
             data = data[0];
         }
         console.log("Processed booking data:",JSON.stringify(data, null, 2));
+
+        // Validation
+        const validationErrors = [];
+        
+        // Required field validation
+        if (!data.firstName || !data.firstName.trim()) {
+            validationErrors.push("First name is required");
+        }
+        if (!data.lastName || !data.lastName.trim()) {
+            validationErrors.push("Last name is required");
+        }
+        if (!data.carType || !data.carType.trim()) {
+            validationErrors.push("Car type is required");
+        }
+        if (!data.registration || !data.registration.trim()) {
+            validationErrors.push("Vehicle registration is required");
+        }
+        if (!data.services || !Array.isArray(data.services) || data.services.length === 0) {
+            validationErrors.push("At least one service must be selected");
+        }
+        if (!data.date || !data.date.trim()) {
+            validationErrors.push("Date is required");
+        }
+        if (!data.time || !data.time.trim()) {
+            validationErrors.push("Time is required");
+        }
+        if (!data.email || !data.email.trim()) {
+            validationErrors.push("Email is required");
+        }
+        if (!data.phone || !data.phone.toString().trim()) {
+            validationErrors.push("Phone number is required");
+        }
+
+        // Email format validation
+        if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+            validationErrors.push("Please enter a valid email address");
+        }
+
+        // Phone validation (flexible for Australian numbers)
+        if (data.phone && data.phone.toString().trim().length < 8) {
+            validationErrors.push("Please enter a valid phone number");
+        }
+
+        // Registration validation
+        if (data.registration && data.registration.trim().length < 3) {
+            validationErrors.push("Vehicle registration must be at least 3 characters");
+        }
+
+        // Date validation (not in the past)
+        if (data.date) {
+            const selectedDate = new Date(data.date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (selectedDate < today) {
+                validationErrors.push("Please select a future date");
+            }
+        }
+
+        // Time validation
+        if (data.time) {
+            const [hour, minute] = data.time.split(":").map(Number);
+            const totalMinutes = hour * 60 + minute;
+            const minMinutes = 7 * 60;
+            const maxMinutes = 17 * 60;
+
+            if (totalMinutes < minMinutes || totalMinutes > maxMinutes) {
+                validationErrors.push("Please select a time between 07:00 and 17:00");
+            }
+        }
+
+        // Return validation errors if any
+        if (validationErrors.length > 0) {
+            return res.status(400).json({
+                message: "Validation failed",
+                errors: validationErrors
+            });
+        }
+
         const booking_id= utils.generateBookingId()
         console.log("Generated booking_id:",booking_id);
        
         const booking=await Booking.create({
             booking_id,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            car_type: data.carType,
-            vehicle_registration: data.registration,
+            first_name: data.firstName.trim(),
+            last_name: data.lastName.trim(),
+            car_type: data.carType.trim(),
+            vehicle_registration: data.registration.trim().toUpperCase(),
             services: data.services,
             booking_date: data.date,
             booking_time: data.time,
-            email: data.email,
-            phone: data.phone
+            email: data.email.trim().toLowerCase(),
+            phone: data.phone.toString().trim()
         })
         
         console.log("Saved booking to DB:", booking);
