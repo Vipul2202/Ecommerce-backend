@@ -95,7 +95,7 @@ exports.getWelcomeEmail = (username, email, password) => {
 };
 exports.getBookingConfirmationEmail = (username, confirmationLink) => {
   const isConfirmed = !confirmationLink;
-  const title = isConfirmed ? "Booking Confirmed!" : "Car Saloon - Booking Confirmation";
+  const title = isConfirmed ? "Car Saloon" : "Car Saloon - Booking Confirmation";
   const backgroundColor = isConfirmed ? "#007bff" : "#007bff";
   
   let content = '';
@@ -105,8 +105,8 @@ exports.getBookingConfirmationEmail = (username, confirmationLink) => {
       <p style="font-size: 15px; color: #555;">
         Great news! Your booking has been confirmed by our team. We look forward to serving you.
       </p>
-      <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #e8f5e8; border-radius: 8px;">
-        <h3 style="color: #007bff; margin: 0;">✅ Your booking is confirmed!</h3>
+      <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #8fc0f5ff; border-radius: 8px;">
+        <h3 style="color: #007bff; margin: 0;">Your booking is confirmed!</h3>
         <p style="margin: 10px 0 0 0; color: #555;">We'll see you soon!</p>
       </div>
     `;
