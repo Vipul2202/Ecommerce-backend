@@ -55,7 +55,7 @@ exports.changeBookingStatus = async (req, res) => {
         last_name: booking.last_name,
         email: booking.email,
         phone: booking.phone,
-        booking_status: booking.booking_status,
+        booking_status: 'Approved',
         message: booking.message,
 
       };
