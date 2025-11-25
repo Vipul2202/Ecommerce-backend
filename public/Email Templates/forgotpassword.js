@@ -150,17 +150,17 @@ exports.getBookingConfirmationEmail = (username, confirmationLink) => {
 exports.getBookingApprovalEmail = (booking) => {
   const {
     booking_id,
-    car_type,
+    
     vehicle_registration,
     services,
     booking_date,
     booking_time,
     first_name,
-    last_name,
+    
     email,
     phone,
     booking_status,
-    message
+    
   } = booking;
 
   return `
@@ -173,13 +173,13 @@ exports.getBookingApprovalEmail = (booking) => {
         </tr>
         <tr>
           <td style="padding: 30px;">
-            <p style="font-size: 16px; color: #333;">Hello <strong>${first_name} ${last_name}</strong>,</p>
+            <p style="font-size: 16px; color: #333;">Hello <strong>${first_name}</strong>,</p>
             <p style="font-size: 15px; color: #555;">
               We are pleased to inform you that your booking has been <strong>approved</strong>. Below are your booking details:
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
               <tr><td><strong>Booking ID:</strong></td><td>${booking_id}</td></tr>
-              <tr><td><strong>Car Type:</strong></td><td>${car_type}</td></tr>
+              
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
@@ -187,7 +187,7 @@ exports.getBookingApprovalEmail = (booking) => {
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td style="color: green;"><strong>${booking_status}</strong></td></tr>
-              <tr><td><strong>Message:</strong></td><td>${message}</td></tr>
+             
             </table>
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
               If you have any questions or need to make changes to your booking, feel free to contact us.
@@ -425,6 +425,7 @@ exports.getAdminNewPurchaseOrderEmail = (order) => {
     </div>
   `;
 };
+
 
 
 
