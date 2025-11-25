@@ -18,9 +18,9 @@ exports.bookingList = async (req, res) => {
       ];
     }
     if (status) {
-      query.status = status;
+      query.booking_status = status;
     }
-    query.is_verified = false;
+    // query.is_verified = false;
     const booking = await Booking.find(query)
       .limit(limit)
       .skip(offset)
@@ -41,7 +41,7 @@ exports.changeBookingStatus = async (req, res) => {
     if (status === "approved") {
       const booking = await Booking.findByIdAndUpdate(
         id,
-        { booking_status: status, is_verified: true,message:reason },
+        { booking_status: status, is_verified: true, message: reason },
         { new: true }
       );
       const datatosend = {
@@ -68,11 +68,11 @@ exports.changeBookingStatus = async (req, res) => {
       });
       return res.status(200).json({ message: "Booking status updated successfully" });
     } else if (status === "cancelled") {
-     const booking = await Booking.findByIdAndUpdate(
-  id,
-  { booking_status: status, booking_cancel_reason: reason },
-  { new: true }
-);
+      const booking = await Booking.findByIdAndUpdate(
+        id,
+        { booking_status: status, booking_cancel_reason: reason },
+        { new: true }
+      );
       const datatosend = {
         booking_id: booking.booking_id,
         car_type: booking.car_type,
@@ -107,7 +107,7 @@ exports.getSingleBooking = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
-    return res.status(200).json({ data:booking, message: "Booking fetched successfully" });
+    return res.status(200).json({ data: booking, message: "Booking fetched successfully" });
   } catch (error) {
     console.log(error);
     utils.handleError(res, error);
