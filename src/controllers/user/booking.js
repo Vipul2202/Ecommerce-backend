@@ -23,14 +23,9 @@ exports.createBooking=async(req,res)=>{
         
         // Required field validation
         if (!data.firstName || !data.firstName.trim()) {
-            validationErrors.push("First name is required");
+            validationErrors.push("Name is required");
         }
-        if (!data.lastName || !data.lastName.trim()) {
-            validationErrors.push("Last name is required");
-        }
-        if (!data.carType || !data.carType.trim()) {
-            validationErrors.push("Car type is required");
-        }
+              
         if (!data.registration || !data.registration.trim()) {
             validationErrors.push("Vehicle registration is required");
         }
@@ -101,8 +96,8 @@ exports.createBooking=async(req,res)=>{
         const booking=await Booking.create({
             booking_id,
             first_name: data.firstName.trim(),
-            last_name: data.lastName.trim(),
-            car_type: data.carType.trim(),
+           
+           
             vehicle_registration: data.registration.trim().toUpperCase(),
             services: data.services,
             booking_date: data.date,
@@ -116,13 +111,13 @@ exports.createBooking=async(req,res)=>{
         // Prepare data for admin notification using saved booking object
         const adminNotificationData = {
           booking_id: booking.booking_id,
-          car_type: booking.car_type,
+         
           vehicle_registration: booking.vehicle_registration,
           services: booking.services,
           booking_date: booking.booking_date,
           booking_time: booking.booking_time,
           first_name: booking.first_name,
-          last_name: booking.last_name,
+          
           email: booking.email,
           phone: booking.phone,
           booking_status: booking.booking_status,
@@ -175,13 +170,13 @@ exports.confirmBooking = async (req, res) => {
 
     const datatosend = {
       booking_id: booking.booking_id,
-      car_type: booking.car_type,
+      
       vehicle_registration: booking.vehicle_registration,
       services: booking.services,
       booking_date: booking.booking_date,
       booking_time: booking.booking_time,
       first_name: booking.first_name,
-      last_name: booking.last_name,
+      
       email: booking.email,
       phone: booking.phone,
       booking_status: booking.booking_status,
