@@ -206,6 +206,36 @@ exports.confirmBooking = async (req, res) => {
       console.error('Cannot send confirmation email: booking.email is missing');
     }
 
+    // Send confirmation email to admin
+    const adminNotificationData = {
+      booking_id: booking.booking_id,
+      vehicle_registration: booking.vehicle_registration,
+      services: booking.services,
+      booking_date: booking.booking_date,
+      booking_time: booking.booking_time,
+      first_name: booking.first_name,
+      email: booking.email,
+      phone: booking.phone,
+      booking_status: booking.booking_status,
+      link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}` // Link might not be needed for approved status, but keeping it for consistency
+    };
+
+    const adminHtml = getAdminNewBookingEmail(adminNotificationData);
+    const adminemail = process.env.ADMIN_EMAIL || 'nik.05.jindal@gmail.com';
+
+    if (adminemail) {
+      await sendEmail({
+        to: adminemail,
+        subject: "Booking Approved",
+        html: adminHtml,
+      }).catch((error) => {
+        console.error('Failed to send admin confirmation email:', error);
+      });
+      console.log("Admin confirmation email sent successfully to:", adminemail);
+    } else {
+      console.error('ADMIN_EMAIL environment variable is not set');
+    }
+
     return res.status(200).send(`
   <!DOCTYPE html>
   <html lang="en">
