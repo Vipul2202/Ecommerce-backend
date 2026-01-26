@@ -25,7 +25,9 @@ exports.createBooking = async (req, res) => {
     if (!data.firstName || !data.firstName.trim()) {
       validationErrors.push("Name is required");
     }
-
+    if (!data.location|| !data.location.trim()) {
+      validationErrors.push("Location is required");
+    }
     if (!data.registration || !data.registration.trim()) {
       validationErrors.push("Vehicle registration is required");
     }
@@ -96,7 +98,7 @@ exports.createBooking = async (req, res) => {
     const booking = await Booking.create({
       booking_id,
       first_name: data.firstName.trim(),
-
+      location:data.location,
 
       vehicle_registration: data.registration.trim().toUpperCase(),
       services: data.services,
@@ -117,7 +119,7 @@ exports.createBooking = async (req, res) => {
       booking_date: booking.booking_date,
       booking_time: booking.booking_time,
       first_name: booking.first_name,
-
+      location:booking.location,
       email: booking.email,
       phone: booking.phone,
       booking_status: booking.booking_status,
@@ -173,6 +175,7 @@ exports.confirmBooking = async (req, res) => {
       booking_id: booking.booking_id,
       car_type: booking.car_type,
       vehicle_registration: booking.vehicle_registration,
+      location:booking.location,
       services: booking.services,
       booking_date: booking.booking_date,
       booking_time: booking.booking_time,
@@ -210,6 +213,7 @@ exports.confirmBooking = async (req, res) => {
     const adminNotificationData = {
       booking_id: booking.booking_id,
       vehicle_registration: booking.vehicle_registration,
+      location:booking.location,
       services: booking.services,
       booking_date: booking.booking_date,
       booking_time: booking.booking_time,

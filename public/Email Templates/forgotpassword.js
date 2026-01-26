@@ -150,7 +150,7 @@ exports.getBookingConfirmationEmail = (username, confirmationLink) => {
 exports.getBookingApprovalEmail = (booking) => {
   const {
     booking_id,
-    
+    location,
     vehicle_registration,
     services,
     booking_date,
@@ -183,6 +183,7 @@ exports.getBookingApprovalEmail = (booking) => {
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
@@ -207,6 +208,7 @@ exports.getBookingCancellationEmail = (booking) => {
   const {
     booking_id,
     car_type,
+    location,
     vehicle_registration,
     services,
     booking_date,
@@ -239,6 +241,7 @@ exports.getBookingCancellationEmail = (booking) => {
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
@@ -262,7 +265,7 @@ exports.getBookingCancellationEmail = (booking) => {
 exports.getAdminNewBookingEmail = (booking) => {
   const {
     booking_id,
-
+    location,
     vehicle_registration,
     services,
     booking_date,
@@ -305,6 +308,7 @@ exports.getAdminNewBookingEmail = (booking) => {
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Location :</strong></td><td>${location}</td></tr>
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Customer Name:</strong></td><td>${first_name} </td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>

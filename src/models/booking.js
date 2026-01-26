@@ -9,6 +9,11 @@ const bookingSchema=new mongoose.Schema({
     car_type:{
         type:String
     },
+    location: {
+    type: String,
+    required: true,
+    enum: ["Midland", "Myaree"], 
+  },
     vehicle_registration:{
         type:String
     },
