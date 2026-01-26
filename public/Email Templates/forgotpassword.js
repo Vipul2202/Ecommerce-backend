@@ -162,6 +162,15 @@ exports.getBookingApprovalEmail = (booking) => {
     booking_status,
     
   } = booking;
+ const formatDate = (date) => {
+  if (!(date instanceof Date)) return date;
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
 
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
@@ -182,7 +191,7 @@ exports.getBookingApprovalEmail = (booking) => {
               <tr><td><strong>Booking Location:</strong></td><td><b>${location}</b></td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
-              <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
               
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
@@ -277,6 +286,15 @@ exports.getAdminNewBookingEmail = (booking) => {
     booking_status,
     link,
   } = booking;
+ const formatDate = (date) => {
+  if (!(date instanceof Date)) return date;
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
 
   const isApproved = booking_status === 'approved';
   const title = isApproved ? "Booking Confirmed" : "New Booking Received";
@@ -307,7 +325,7 @@ exports.getAdminNewBookingEmail = (booking) => {
              <tr><td><strong>Booking Location :</strong></td><td>${location}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
-              <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
+              <tr><td><strong>Booking Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
             
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Customer Name:</strong></td><td>${first_name} </td></tr>
