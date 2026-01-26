@@ -178,12 +178,12 @@ exports.getBookingApprovalEmail = (booking) => {
               We are pleased to inform you that your booking has been <strong>approved</strong>. Below are your booking details:
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
-              <tr><td><strong>Booking ID:</strong></td><td>${booking_id}</td></tr>
               
+              <tr><td><strong>Booking Location:</strong></td><td><b>${location}</b></td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
-              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
@@ -236,12 +236,12 @@ exports.getBookingCancellationEmail = (booking) => {
               We regret to inform you that your booking has been <strong>cancelled</strong>. Please find the booking details below:
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
-              <tr><td><strong>Booking ID:</strong></td><td>${booking_id}</td></tr>
+              <tr><td><strong>Booking Location:</strong></td><td><b>${location}</b></td></tr>
               <tr><td><strong>Car Type:</strong></td><td>${car_type}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
-              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
@@ -303,12 +303,12 @@ exports.getAdminNewBookingEmail = (booking) => {
               ${isApproved ? 'The following booking has been confirmed:' : 'A new booking has been submitted with the following details:'}
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
-              <tr><td><strong>Booking ID:</strong></td><td>${booking_id}</td></tr>
-           
+             
+             <tr><td><strong>Booking Location :</strong></td><td>${location}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${booking_date instanceof Date ? booking_date.toLocaleDateString() : booking_date}</td></tr>
-              <tr><td><strong>Booking Location :</strong></td><td>${location}</td></tr>
+            
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Customer Name:</strong></td><td>${first_name} </td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
