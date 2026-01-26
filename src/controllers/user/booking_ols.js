@@ -60,6 +60,15 @@ exports.createBooking = async (req, res) => {
       validationErrors.push("Vehicle registration must be at least 3 characters");
     }
 
+    /*const formatDateDDMMYYYY = (dateStr) => {
+  const date = new Date(dateStr);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};*/
+
+
     // Date validation (not in the past)
     if (data.date) {
       const selectedDate = new Date(data.date);
@@ -101,6 +110,7 @@ exports.createBooking = async (req, res) => {
       vehicle_registration: data.registration.trim().toUpperCase(),
       services: data.services,
       booking_date: data.date,
+
       booking_time: data.time,
       email: data.email.trim().toLowerCase(),
       phone: data.phone.toString().trim()
