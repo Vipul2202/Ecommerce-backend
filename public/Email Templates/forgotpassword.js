@@ -200,6 +200,9 @@ exports.getBookingApprovalEmail = (booking) => {
              
             </table>
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
+              <b>Note</b> - Extra Cleaning charges may apply if the car is excessively dirty. We will advise you of any additional charges before we start the service.
+            </p>
+            <p style="margin-top: 30px; font-size: 14px; color: #777;">
               If you have any questions or need to make changes to your booking, feel free to contact us.
             </p>
           </td>
@@ -337,7 +340,7 @@ exports.getAdminNewBookingEmail = (booking) => {
             ${actionButton}
 
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
-              Please review and take any necessary actions in your admin dashboard.
+              <b>Note</b> - Extra Cleaning charges may apply if the car is excessively dirty. We will advise you of any additional charges before we start the service.
             </p>
           </td>
         </tr>
