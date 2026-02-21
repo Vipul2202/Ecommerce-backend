@@ -86,7 +86,7 @@ exports.getWelcomeEmail = (username, email, password) => {
         </tr>
         <tr>
           <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
-            &copy; ${new Date().getFullYear()} Your App. All rights reserved.
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
           </td>
         </tr>
       </table>
@@ -140,7 +140,7 @@ exports.getBookingConfirmationEmail = (username, confirmationLink) => {
         </tr>
         <tr>
           <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
-            &copy; ${new Date().getFullYear()} Your App. All rights reserved.
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
           </td>
         </tr>
       </table>
@@ -209,7 +209,7 @@ exports.getBookingApprovalEmail = (booking) => {
         </tr>
         <tr>
           <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
-            &copy; ${new Date().getFullYear()} Your App. All rights reserved.
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
           </td>
         </tr>
       </table>
@@ -267,7 +267,7 @@ exports.getBookingCancellationEmail = (booking) => {
         </tr>
         <tr>
           <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
-            &copy; ${new Date().getFullYear()} Your App. All rights reserved.
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
           </td>
         </tr>
       </table>
@@ -346,7 +346,7 @@ exports.getAdminNewBookingEmail = (booking) => {
         </tr>
         <tr>
           <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
-            &copy; ${new Date().getFullYear()} Your App. All rights reserved.
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
           </td>
         </tr>
       </table>
