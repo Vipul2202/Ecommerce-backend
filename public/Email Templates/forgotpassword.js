@@ -200,7 +200,7 @@ exports.getBookingApprovalEmail = (booking) => {
              
             </table>
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
-              <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;>surcharge</b> depending on the condition.
+              <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;">surcharge</b> depending on the condition.
               We will advise you of any additional cost before we start the cleaning.
 
             </p>
@@ -342,7 +342,7 @@ exports.getAdminNewBookingEmail = (booking) => {
             ${actionButton}
 
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
-              <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;>surcharge</b> depending on the condition.
+              <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;">surcharge</b> depending on the condition.
               We will advise you of any additional cost before we start the cleaning.
 
             </p>
