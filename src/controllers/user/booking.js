@@ -225,7 +225,12 @@ exports.confirmBooking = async (req, res) => {
     };
 
     const adminHtml = getAdminNewBookingEmail(adminNotificationData);
-    const adminemail = process.env.ADMIN_EMAIL || 'nik.05.jindal@gmail.com';
+    const adminemail = process.env.ADMIN_EMAIL ;
+
+    const locationEmails = {
+    myaree: process.env.MYAREE_EMAIL,
+    midland: process.env.MIDLAND_EMAIL,
+    };
 
     if (adminemail) {
       await sendEmail({
@@ -238,6 +243,20 @@ exports.confirmBooking = async (req, res) => {
       console.log("Admin confirmation email sent successfully to:", adminemail);
     } else {
       console.error('ADMIN_EMAIL environment variable is not set');
+    }
+
+    // Send confirmation email to location email
+    if (locationEmails[booking.location.toLowerCase()]) {
+    await sendEmail({
+    to: locationEmails[booking.location.toLowerCase()],
+    subject: "Booking Approved",
+    html: adminHtml,
+  }).catch((error) => {
+        console.error('Failed to send location confirmation email:', error);
+      });
+      console.log("Location confirmation email sent successfully to:", locationEmail);
+    } else {
+      console.error('LOCATION_EMAIL environment variable is not set');
     }
 
     return res.status(200).send(`
