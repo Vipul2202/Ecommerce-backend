@@ -43,15 +43,6 @@ const sendEmailViaResend = async (emailData) => {
   return true;
 };
 
-// In-memory cache so we don't hit Zoho's OAuth endpoint on every single
-// email. Zoho access tokens are valid for ~1 hour; we refresh a bit early
-// to be safe. This matters because one booking confirmation can trigger
-// 3 emails (customer, admin, location) in quick succession — without
-// caching that was 3 separate token refreshes per confirmation, adding
-// latency and risking Zoho's own rate limits on the token endpoint.
-let cachedZohoToken = null;
-let cachedZohoTokenExpiresAt = 0; // epoch ms
-
 // Get Zoho Mail API access token using refresh_token (Authorization Code flow)
 const getZohoAccessToken = async () => {
   const accountsBase = process.env.ZOHO_ACCOUNTS_BASE || 'https://accounts.zoho.com';
@@ -61,12 +52,6 @@ const getZohoAccessToken = async () => {
   if (!process.env.ZOHO_CLIENT_ID || !process.env.ZOHO_CLIENT_SECRET || !process.env.ZOHO_REFRESH_TOKEN) {
     logEmail('ERROR', 'Zoho OAuth env missing. Need ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN');
     throw new Error('Zoho OAuth env missing');
-  }
-
-  // Serve from cache if it's still valid (60s safety buffer)
-  if (cachedZohoToken && Date.now() < cachedZohoTokenExpiresAt - 60000) {
-    logEmail('INFO', 'Using cached Zoho access token');
-    return cachedZohoToken;
   }
 
   logEmail('INFO', 'Refreshing Zoho access token...');
@@ -92,12 +77,6 @@ const getZohoAccessToken = async () => {
     logEmail('ERROR', 'Zoho token response missing access_token', response?.data);
     throw new Error('Zoho token response missing access_token');
   }
-
-  // Zoho typically returns expires_in in seconds (usually 3600). Fall back
-  // to a conservative 55 minutes if it's ever missing.
-  const expiresInMs = (response?.data?.expires_in ? response.data.expires_in * 1000 : 55 * 60 * 1000);
-  cachedZohoToken = accessToken;
-  cachedZohoTokenExpiresAt = Date.now() + expiresInMs;
 
   logEmail('SUCCESS', 'Zoho access token obtained');
   return accessToken;

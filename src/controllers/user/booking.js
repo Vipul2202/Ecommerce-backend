@@ -6,22 +6,13 @@ const utils = require("../../utils/utils");
 
 exports.createBooking = async (req, res) => {
   try {
-    console.log("=== RAW REQUEST BODY ===");
-    console.log("Type:", typeof req.body);
-    console.log("Is Array:", Array.isArray(req.body));
-    console.log("Content:", JSON.stringify(req.body, null, 2));
-    console.log("======================");
-
-    // Handle if data comes as array (extract first element) or as object
     let data = req.body;
     if (Array.isArray(data) && data.length > 0) {
       data = data[0];
     }
-    console.log("Processed booking data:", JSON.stringify(data, null, 2));
 
     // Validation
     const validationErrors = [];
-
     if (!data.firstName || !data.firstName.trim()) validationErrors.push("Name is required");
     if (!data.location || !data.location.trim()) validationErrors.push("Location is required");
     if (!data.registration || !data.registration.trim()) validationErrors.push("Vehicle registration is required");
@@ -30,7 +21,6 @@ exports.createBooking = async (req, res) => {
     if (!data.time || !data.time.trim()) validationErrors.push("Time is required");
     if (!data.email || !data.email.trim()) validationErrors.push("Email is required");
     if (!data.phone || !data.phone.toString().trim()) validationErrors.push("Phone number is required");
-
     if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) validationErrors.push("Please enter a valid email address");
     if (data.phone && data.phone.toString().trim().length < 8) validationErrors.push("Please enter a valid phone number");
     if (data.registration && data.registration.trim().length < 3) validationErrors.push("Vehicle registration must be at least 3 characters");
@@ -55,7 +45,6 @@ exports.createBooking = async (req, res) => {
     }
 
     const booking_id = utils.generateBookingId();
-    console.log("Generated booking_id:", booking_id);
 
     const booking = await Booking.create({
       booking_id,
@@ -68,8 +57,6 @@ exports.createBooking = async (req, res) => {
       email: data.email.trim().toLowerCase(),
       phone: data.phone.toString().trim()
     });
-
-    console.log("Saved booking to DB:", booking);
 
     const adminNotificationData = {
       booking_id: booking.booking_id,
@@ -85,11 +72,8 @@ exports.createBooking = async (req, res) => {
       link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`
     };
 
-    console.log("Admin notification data:", adminNotificationData);
-
     const html = getAdminNewBookingEmail(adminNotificationData);
     const adminemail = process.env.ADMIN_EMAIL || 'nik.05.jindal@gmail.com';
-    console.log("adminemail", adminemail);
 
     if (!adminemail) {
       console.error('ADMIN_EMAIL environment variable is not set');
@@ -97,14 +81,14 @@ exports.createBooking = async (req, res) => {
     }
 
     try {
-      const ress = await sendEmail({
+      await sendEmail({
         to: adminemail,
         subject: "New Booking Request - Action Required",
         html,
       });
-      console.log("Admin notification sent:", ress);
     } catch (error) {
       console.error('Failed to send admin notification email:', error);
+      // Continue with the response even if email fails
     }
 
     return res.status(201).json({ message: "Booking created successfully", booking });
@@ -122,6 +106,35 @@ exports.confirmBooking = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // ── IDEMPOTENCY GUARD ──────────────────────────────────────
+    // Email links get auto-visited by link-scanners / safe-link
+    // checkers / retried clients. Without this check, every extra
+    // visit re-runs the whole flow and re-sends every email again.
+    if (booking.booking_status === "approved" && booking.is_verified) {
+      return res.status(200).send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Already Confirmed</title>
+          <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f8fb; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .message-box { background-color: #eef6ff; border: 1px solid #a6c8e0; padding: 30px 40px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+            .message-box h1 { color: #2b5f8a; margin-bottom: 10px; }
+            .message-box p { color: #3d3d3d; font-size: 16px; }
+          </style>
+        </head>
+        <body>
+          <div class="message-box">
+            <h1>Already Confirmed</h1>
+            <p>This booking has already been approved. No further action is needed.</p>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
     booking.is_verified = true;
@@ -147,7 +160,6 @@ exports.confirmBooking = async (req, res) => {
 
     // ── 1. Send confirmation email to customer ────────────────
     const userConfirmationHtml = getBookingApprovalEmail(datatosend);
-    console.log("User email for confirmation:", booking.email);
 
     if (booking.email) {
       await sendEmail({
@@ -157,12 +169,11 @@ exports.confirmBooking = async (req, res) => {
       }).catch((error) => {
         console.error('Failed to send user confirmation email:', error);
       });
-      console.log("User confirmation email sent successfully to:", booking.email);
     } else {
       console.error('Cannot send confirmation email: booking.email is missing');
     }
 
-    // ── 2. Build admin notification data ─────────────────────
+    // ── 2. Build admin notification data ───────────────────────
     const adminNotificationData = {
       booking_id: booking.booking_id,
       vehicle_registration: booking.vehicle_registration,
@@ -178,9 +189,9 @@ exports.confirmBooking = async (req, res) => {
     };
 
     const adminHtml = getAdminNewBookingEmail(adminNotificationData);
-
-    // ── 3. Send email to admin ────────────────────────────────
     const adminemail = process.env.ADMIN_EMAIL;
+
+    // ── 3. Send email to admin ──────────────────────────────────
     if (adminemail) {
       await sendEmail({
         to: adminemail,
@@ -189,20 +200,16 @@ exports.confirmBooking = async (req, res) => {
       }).catch((error) => {
         console.error('Failed to send admin confirmation email:', error);
       });
-      console.log("Admin confirmation email sent successfully to:", adminemail);
     } else {
       console.error('ADMIN_EMAIL environment variable is not set');
     }
 
-    // ── 4. Send email to location-based recipients ────────────
-    // Add MIDLAND_EMAIL and MYAREE_EMAIL to your .env file
+    // ── 4. Send email to location-based recipients ──────────────
     const locationEmails = {
       myaree: process.env.MYAREE_EMAIL,
       midland: process.env.MIDLAND_EMAIL,
     };
 
-    // ✅ FIX: was using undefined variable 'locationEmail'
-    //         now correctly uses locationEmails[booking.location.toLowerCase()]
     const bookingLocation = booking.location ? booking.location.toLowerCase().trim() : '';
     const locationEmail = locationEmails[bookingLocation];
 
@@ -214,7 +221,6 @@ exports.confirmBooking = async (req, res) => {
       }).catch((error) => {
         console.error('Failed to send location confirmation email:', error);
       });
-      console.log("Location confirmation email sent successfully to:", locationEmail);
     } else {
       console.warn(`No location email configured for location: "${booking.location}". Check MIDLAND_EMAIL / MYAREE_EMAIL in .env`);
     }
@@ -227,30 +233,15 @@ exports.confirmBooking = async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Booking Confirmed</title>
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f8fb;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-          }
-          .message-box {
-            background-color: #e0f9e0;
-            border: 1px solid #a6d8a8;
-            padding: 30px 40px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            text-align: center;
-          }
+          body { font-family: Arial, sans-serif; background-color: #f4f8fb; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+          .message-box { background-color: #e0f9e0; border: 1px solid #a6d8a8; padding: 30px 40px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
           .message-box h1 { color: #2b7a2b; margin-bottom: 10px; }
           .message-box p { color: #3d3d3d; font-size: 16px; }
         </style>
       </head>
       <body>
         <div class="message-box">
-          <h1>Booking Confirmed!</h1>
+          <h1>✅ Booking Confirmed!</h1>
           <p>Your booking has been successfully completed. Thank you for choosing us.</p>
         </div>
       </body>
