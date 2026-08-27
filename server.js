@@ -17,13 +17,15 @@ const corsOptions = {
     "http://localhost:5173", 
     "http://localhost:5174",
     "http://localhost:4173",
+    "http://localhost:5183",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
-    "http://127.0.0.1:4173"
+    "http://127.0.0.1:4173",
+    "http://127.0.0.1:5183"
   ],
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "x-owner-password"],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204
