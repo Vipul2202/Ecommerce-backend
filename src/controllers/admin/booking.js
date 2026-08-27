@@ -112,4 +112,21 @@ exports.getSingleBooking = async (req, res) => {
     console.log(error);
     utils.handleError(res, error);
   }
+};
+
+exports.deleteBookings = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Provide at least one booking id to delete" });
+    }
+    const result = await Booking.deleteMany({ _id: { $in: ids } });
+    return res.status(200).json({
+      message: "Booking(s) deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.log(error);
+    utils.handleError(res, error);
+  }
 }
