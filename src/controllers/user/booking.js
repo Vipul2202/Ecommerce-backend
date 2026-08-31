@@ -55,7 +55,8 @@ exports.createBooking = async (req, res) => {
       booking_date: data.date,
       booking_time: data.time,
       email: data.email.trim().toLowerCase(),
-      phone: data.phone.toString().trim()
+      phone: data.phone.toString().trim(),
+      marketing_consent: !!data.marketingConsent
     });
 
     const adminNotificationData = {

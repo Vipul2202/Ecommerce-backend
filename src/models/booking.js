@@ -55,6 +55,10 @@ const bookingSchema=new mongoose.Schema({
     },
     message:{
         type:String
+    },
+    marketing_consent:{
+        type:Boolean,
+        default:false
     }
 },{
     timestamps:true
