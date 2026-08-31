@@ -199,10 +199,12 @@ exports.getBookingApprovalEmail = (booking) => {
               <tr><td><strong>Status:</strong></td><td style="color: green;"><strong>${booking_status}</strong></td></tr>
              
             </table>
-            <p style="margin-top: 30px; font-size: 14px; color: #777;">
+            <p style="margin-top: 30px; font-size: 14px; color: #555; background-color: #eef6ff; border-left: 4px solid #007bff; padding: 12px 16px; border-radius: 4px;">
               <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;">surcharge</b> depending on the condition.
               We will advise you of any additional cost before we start the cleaning.
-
+            </p>
+            <p style="margin-top: 16px; font-size: 14px; color: #7a4b00; background-color: #fff8e6; border-left: 4px solid #f0ad4e; padding: 12px 16px; border-radius: 4px;">
+              Please remove all valuables from your car. We practice safe cleaning and try not to touch anything but we are not responsible for the loss of any personal or valuable item.
             </p>
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
               If you have any questions or need to make changes to your booking, feel free to contact us.
@@ -341,10 +343,9 @@ exports.getAdminNewBookingEmail = (booking) => {
 
             ${actionButton}
 
-            <p style="margin-top: 30px; font-size: 14px; color: #777;">
+            <p style="margin-top: 30px; font-size: 14px; color: #555; background-color: #eef6ff; border-left: 4px solid #007bff; padding: 12px 16px; border-radius: 4px;">
               <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;">surcharge</b> depending on the condition.
               We will advise you of any additional cost before we start the cleaning.
-
             </p>
           </td>
         </tr>
