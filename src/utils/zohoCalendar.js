@@ -102,9 +102,6 @@ exports.createBookingCalendarEvent = async (booking) => {
       end: endTime,
     },
     description: [
-      `Booking ID: ${booking.booking_id}`,
-      `Customer: ${booking.first_name}`,
-      `Vehicle Rego: ${booking.vehicle_registration}`,
       `Services: ${servicesList}`,
       `Phone: ${booking.phone}`,
       `Email: ${booking.email}`,
