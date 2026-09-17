@@ -12,27 +12,19 @@ git pull origin main
 echo "📦 Installing dependencies..."
 npm install
 
-echo "🔧 Updating .env file with Zoho Mail configuration..."
-cat > .env << 'EOF'
-MONGODB_URI=mongodb+srv://gaurishankerpromatics:gauri%401234@cluster0.etldgyy.mongodb.net/ecom?retryWrites=true&w=majority
-
-PORT=9006
-
-JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTYiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3MDE2NzE2MDAsImV4cCI6MTcwMTY3NTIwMH0.V7aBEPz1go0MXDYUmJPKH3lyvENZLJ1pj9TcQ83GmRE
-JWT_EXPIRATION_DAY=7
-JWT_EXPIRATION_DAY_FOR_REMEMBER_ME=30
-USER_FRONTEND_URL=https://carsaloon.com.au/
-ADMIN_EMAIL=nik.05.jindal@gmail.com
-STORAGE_PATH=public
-
-# Zoho Mail Configuration (Working)
-EMAIL_USER=info@carsaloon.com.au
-EMAIL_PASS=kSXwtw5siPqP
-
-# Legacy email variables (keeping for compatibility)
-EMAIL=info@carsaloon.com.au
-APP_PASSWORD=kSXwtw5siPqP
-EOF
+echo "🔧 Checking .env file..."
+if [ ! -f .env ]; then
+  echo "❌ .env not found at $(pwd)/.env"
+  echo "   This script no longer writes secrets into .env (they used to be"
+  echo "   hardcoded here and got committed to git). Create .env manually on"
+  echo "   this server first, with at least: MONGODB_URI, PORT, JWT_SECRET,"
+  echo "   JWT_EXPIRATION_DAY, JWT_EXPIRATION_DAY_FOR_REMEMBER_ME,"
+  echo "   USER_FRONTEND_URL, ADMIN_EMAIL, STORAGE_PATH, EMAIL_USER,"
+  echo "   EMAIL_PASS, EMAIL, APP_PASSWORD (and the ZOHO_* / RESEND_API_KEY"
+  echo "   variables used elsewhere)."
+  exit 1
+fi
+echo "✅ .env found, leaving it as-is."
 
 echo "🔄 Restarting server..."
 pm2 restart server

@@ -2,6 +2,7 @@ const { getBookingConfirmationEmail, getAdminNewBookingEmail, getBookingApproval
 const Booking = require('../../models/booking')
 const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
+const { createBookingCalendarEvent } = require("../../utils/zohoCalendar");
 const utils = require("../../utils/utils");
 
 exports.createBooking = async (req, res) => {
@@ -224,6 +225,13 @@ exports.confirmBooking = async (req, res) => {
       });
     } else {
       console.warn(`No location email configured for location: "${booking.location}". Check MIDLAND_EMAIL / MYAREE_EMAIL in .env`);
+    }
+
+    // ── 5. Add the booking to the location's Zoho Calendar ──────
+    try {
+      await createBookingCalendarEvent(booking);
+    } catch (error) {
+      console.error('Failed to create Zoho Calendar event:', error.response?.data || error.message);
     }
 
     return res.status(200).send(`
