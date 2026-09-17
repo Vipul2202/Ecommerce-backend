@@ -84,7 +84,7 @@ exports.createBooking = async (req, res) => {
     try {
       await sendEmail({
         to: adminemail,
-        subject: "New Booking Request - Action Required",
+        subject: "New Booking Request",
         html,
       });
     } catch (error) {
@@ -196,7 +196,7 @@ exports.confirmBooking = async (req, res) => {
     if (adminemail) {
       await sendEmail({
         to: adminemail,
-        subject: "Booking Approved",
+        subject: `${booking.vehicle_registration} - Booking Approved`,
         html: adminHtml,
       }).catch((error) => {
         console.error('Failed to send admin confirmation email:', error);
@@ -217,7 +217,7 @@ exports.confirmBooking = async (req, res) => {
     if (locationEmail) {
       await sendEmail({
         to: locationEmail,
-        subject: `Booking Approved — ${booking.location}`,
+        subject: `${booking.vehicle_registration} - Booking Approved — ${booking.location}`,
         html: adminHtml,
       }).catch((error) => {
         console.error('Failed to send location confirmation email:', error);
