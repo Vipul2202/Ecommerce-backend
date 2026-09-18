@@ -2,10 +2,14 @@ const {
   getBookingConfirmationEmail,
   getBookingApprovalEmail,
   getBookingCancellationEmail,
+  getBookingRescheduleConfirmedEmail,
+  getAdminRescheduleApprovedEmail,
 } = require("../../../public/Email Templates/forgotpassword");
 const Booking = require("../../models/booking");
 const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
+const { upsertBookingCalendarEvent } = require("../../utils/zohoCalendar");
+const { notifyOwners } = require("../../utils/ownerNotify");
 const utils = require("../../utils/utils");
 exports.bookingList = async (req, res) => {
   try {
@@ -44,28 +48,53 @@ exports.changeBookingStatus = async (req, res) => {
         { booking_status: status, is_verified: true, message: reason },
         { new: true }
       );
-      const datatosend = {
-        booking_id: booking.booking_id,
-        car_type: booking.car_type,
-        vehicle_registration: booking.vehicle_registration,
-        services: booking.services,
-        booking_date: booking.booking_date,
-        booking_time: booking.booking_time,
-        first_name: booking.first_name,
-        last_name: booking.last_name,
-        email: booking.email,
-        phone: booking.phone,
-        booking_status: 'Approved',
-        message: booking.message,
 
-      };
+      // A booking already carrying a calendar event was previously approved
+      // and has now been rescheduled by the customer — this approval is
+      // confirming that new time, not a first-time approval.
+      const isRescheduleApproval = !!booking.zoho_calendar_event_id;
 
-      const html = getBookingApprovalEmail(datatosend);
-      await sendEmail({
-        to: booking.email,
-        subject: "Your Booking has been approved",
-        html,
-      });
+      try {
+        await upsertBookingCalendarEvent(booking);
+      } catch (error) {
+        console.error('Failed to sync Zoho Calendar event:', error.response?.data || error.message);
+      }
+
+      if (isRescheduleApproval) {
+        await sendEmail({
+          to: booking.email,
+          subject: "Your Booking Has Been Rescheduled",
+          html: getBookingRescheduleConfirmedEmail(booking),
+        });
+        await notifyOwners({
+          booking,
+          subject: `Reschedule Approved - ${booking.vehicle_registration}`,
+          html: getAdminRescheduleApprovedEmail(booking),
+        });
+      } else {
+        const datatosend = {
+          booking_id: booking.booking_id,
+          car_type: booking.car_type,
+          vehicle_registration: booking.vehicle_registration,
+          services: booking.services,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          first_name: booking.first_name,
+          last_name: booking.last_name,
+          email: booking.email,
+          phone: booking.phone,
+          booking_status: 'Approved',
+          message: booking.message,
+        };
+
+        const html = getBookingApprovalEmail(datatosend);
+        await sendEmail({
+          to: booking.email,
+          subject: "Your Booking has been approved",
+          html,
+        });
+      }
+
       return res.status(200).json({ message: "Booking status updated successfully" });
     } else if (status === "cancelled") {
       const booking = await Booking.findByIdAndUpdate(

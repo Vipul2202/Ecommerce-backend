@@ -64,6 +64,12 @@ const bookingSchema=new mongoose.Schema({
         type:Boolean,
         default:false
     },
+    zoho_calendar_event_id:{
+        type:String
+    },
+    zoho_calendar_event_etag:{
+        type:String
+    },
     reschedule_history:[
         {
             previous_date: { type: Date },
