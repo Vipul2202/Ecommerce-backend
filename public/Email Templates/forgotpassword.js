@@ -483,8 +483,9 @@ exports.getOwnerBookingCancelledByCustomerEmail = (booking) => {
 // Sent to admin + the booking's location when a customer requests a
 // reschedule online. The booking goes back to "pending" — this needs the
 // owner's approval before the customer's new time is confirmed.
-exports.getOwnerRescheduleRequestEmail = (booking, previous) => {
+exports.getOwnerRescheduleRequestEmail = (booking, previous, links) => {
   const { location, vehicle_registration, services, booking_date, booking_time, first_name, email, phone } = booking;
+  const { approveLink, declineLink } = links;
 
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
@@ -497,7 +498,7 @@ exports.getOwnerRescheduleRequestEmail = (booking, previous) => {
         <tr>
           <td style="padding: 30px;">
             <p style="font-size: 15px; color: #555;">
-              ${first_name} has requested to reschedule this booking. It's now marked <strong>pending</strong> — please review and approve in the owner panel to confirm the new time with the customer.
+              ${first_name} has requested to reschedule this booking. It's now marked <strong>pending</strong> — approve or decline below, or review it in the owner panel.
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
               <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
@@ -517,6 +518,16 @@ exports.getOwnerRescheduleRequestEmail = (booking, previous) => {
                   <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #8a5a00; text-transform: uppercase;">Requested</p>
                   <p style="margin: 0; font-size: 14px; color: #333;">${formatDateDDMMYYYY(booking_date)} at ${booking_time}</p>
                   <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServicesList(services)}</p>
+                </td>
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px;">
+              <tr>
+                <td width="50%" style="padding-right: 8px;">
+                  <a href="${approveLink}" style="display: block; text-align: center; background-color: #28a745; color: #ffffff; padding: 12px 10px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">Approve</a>
+                </td>
+                <td width="50%" style="padding-left: 8px;">
+                  <a href="${declineLink}" style="display: block; text-align: center; background-color: #ffffff; color: #b23b3b; border: 1.5px solid #e2b9b9; padding: 10.5px 10px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 14px;">Decline</a>
                 </td>
               </tr>
             </table>
@@ -600,6 +611,47 @@ exports.getAdminRescheduleApprovedEmail = (booking) => {
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
             </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
+// Sent to the customer when the owner declines their reschedule request —
+// their original booking stays as it was.
+exports.getBookingRescheduleDeclinedEmail = (booking, requested) => {
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name } = booking;
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #6c757d; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">We Couldn't Move Your Booking</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hi ${first_name},</p>
+            <p style="font-size: 15px; color: #555;">
+              We're sorry, we're not able to move your booking to ${formatDateDDMMYYYY(requested.booking_date)} at ${requested.booking_time}. Your original booking is still confirmed as below:
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Vehicle:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${formatServicesList(services)}</td></tr>
+              <tr><td><strong>Date:</strong></td><td>${formatDateDDMMYYYY(booking_date)}</td></tr>
+              <tr><td><strong>Time:</strong></td><td>${booking_time}</td></tr>
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
+            </table>
+            <p style="margin-top: 24px; font-size: 14px; color: #555;">
+              If you'd still like to change your booking, feel free to call us directly.
+            </p>
           </td>
         </tr>
         <tr>
