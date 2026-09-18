@@ -364,6 +364,195 @@ exports.getAdminNewBookingEmail = (booking) => {
   `;
 };
 
+exports.getBookingReminderEmail = (booking) => {
+  const {
+    vehicle_registration,
+    services,
+    location,
+    booking_date,
+    booking_time,
+    first_name,
+    cancel_link,
+    reschedule_link,
+  } = booking;
+
+  const formatDate = (date) => {
+    if (!(date instanceof Date)) return date;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #00a0db; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Your booking is coming up</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hi ${first_name},</p>
+            <p style="font-size: 15px; color: #555;">
+              Just a reminder that your car detail is booked. If anything's changed, you can cancel or reschedule below — no need to call.
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Vehicle:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
+              <tr><td><strong>Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
+              <tr><td><strong>Time:</strong></td><td>${booking_time}</td></tr>
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px;">
+              <tr>
+                <td width="50%" style="padding-right: 8px;">
+                  <a href="${reschedule_link}" style="display: block; text-align: center; background-color: #00a0db; color: #ffffff; padding: 12px 10px; border-radius: 999px; font-weight: bold; text-decoration: none; font-size: 14px;">Reschedule</a>
+                </td>
+                <td width="50%" style="padding-left: 8px;">
+                  <a href="${cancel_link}" style="display: block; text-align: center; background-color: #ffffff; color: #b23b3b; border: 1.5px solid #e2b9b9; padding: 10.5px 10px; border-radius: 999px; font-weight: bold; text-decoration: none; font-size: 14px;">Cancel booking</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin-top: 24px; font-size: 12.5px; color: #999;">
+              Changes can be made online up until 24 hours before your appointment. After that, please call your location directly.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
+exports.getOwnerBookingCancelledByCustomerEmail = (booking) => {
+  const {
+    booking_id,
+    location,
+    vehicle_registration,
+    services,
+    booking_date,
+    booking_time,
+    first_name,
+    email,
+    phone,
+  } = booking;
+
+  const formatDate = (date) => {
+    if (!(date instanceof Date)) return date;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #dc3545; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Customer Cancelled Booking</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 15px; color: #555;">
+              ${first_name} cancelled their own booking online via the reminder email.
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
+              <tr><td><strong>Was Booked For:</strong></td><td>${formatDate(booking_date)} at ${booking_time}</td></tr>
+              <tr><td><strong>Customer Name:</strong></td><td>${first_name}</td></tr>
+              <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
+              <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
+exports.getOwnerBookingRescheduledByCustomerEmail = (booking, previous) => {
+  const {
+    location,
+    vehicle_registration,
+    services,
+    booking_date,
+    booking_time,
+    first_name,
+    email,
+    phone,
+  } = booking;
+
+  const formatDate = (date) => {
+    if (!(date instanceof Date)) return date;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatServices = (services) => (services && Array.isArray(services) ? services.join(', ') : services || 'N/A');
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0ad4e; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Customer Rescheduled Booking</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 15px; color: #555;">
+              ${first_name} rescheduled their own booking online via the reminder email.
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Customer Name:</strong></td><td>${first_name}</td></tr>
+              <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
+              <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+              <tr>
+                <td width="50%" style="vertical-align: top; padding: 12px; background-color: #fdecec; border-radius: 6px 0 0 6px;">
+                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #b23b3b; text-transform: uppercase;">Previous</p>
+                  <p style="margin: 0; font-size: 14px; color: #333;">${formatDate(previous.booking_date)} at ${previous.booking_time}</p>
+                  <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServices(previous.services)}</p>
+                </td>
+                <td width="50%" style="vertical-align: top; padding: 12px; background-color: #e9f7ef; border-radius: 0 6px 6px 0;">
+                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #1a8754; text-transform: uppercase;">New</p>
+                  <p style="margin: 0; font-size: 14px; color: #333;">${formatDate(booking_date)} at ${booking_time}</p>
+                  <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServices(services)}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
 exports.getAdminNewPurchaseOrderEmail = (order) => {
   const {
     _id,
