@@ -44,18 +44,35 @@ async function run() {
 
   console.log(`Looking for approved, not-yet-reminded bookings between ${rangeStart.toISOString()} and ${rangeEnd.toISOString()}`);
 
-  const bookings = await Booking.find({
+  const candidates = await Booking.find({
     booking_status: 'approved',
     reminder_sent: { $ne: true },
     booking_date: { $gte: rangeStart, $lt: rangeEnd },
   });
 
-  console.log(`Found ${bookings.length} booking(s) to remind.`);
+  console.log(`Found ${candidates.length} candidate booking(s) to remind.`);
 
   let succeeded = 0;
+  let skipped = 0;
   let failed = 0;
 
-  for (const booking of bookings) {
+  for (const candidate of candidates) {
+    // Atomically claim the booking (flip reminder_sent first, as a single
+    // DB operation) so two overlapping runs of this script can never both
+    // send a reminder for the same booking — whichever one flips the flag
+    // first wins, the other finds nothing to claim and moves on.
+    const booking = await Booking.findOneAndUpdate(
+      { _id: candidate._id, reminder_sent: { $ne: true } },
+      { $set: { reminder_sent: true } },
+      { new: true }
+    );
+
+    if (!booking) {
+      console.log(`Skipped ${candidate.booking_id} — already claimed by another run.`);
+      skipped++;
+      continue;
+    }
+
     try {
       const html = getBookingReminderEmail({
         vehicle_registration: booking.vehicle_registration,
@@ -74,18 +91,19 @@ async function run() {
         html,
       });
 
-      booking.reminder_sent = true;
-      await booking.save();
-
       console.log(`Reminded: ${booking.booking_id} (${booking.vehicle_registration}, ${booking.location})`);
       succeeded++;
     } catch (error) {
-      console.error(`Failed for ${booking.booking_id}:`, error.response?.data || error.message);
+      // Already claimed above, so this booking won't be retried — that's
+      // deliberate: a duplicate reminder is worse than an occasional missed
+      // one caused by a transient send failure. Failures here are worth
+      // checking the log for and reminding that customer manually if needed.
+      console.error(`Failed for ${booking.booking_id} (already marked reminded, will not retry):`, error.response?.data || error.message);
       failed++;
     }
   }
 
-  console.log(`Done. ${succeeded} succeeded, ${failed} failed.`);
+  console.log(`Done. ${succeeded} succeeded, ${failed} failed, ${skipped} skipped (already claimed).`);
   await mongoose.disconnect();
   process.exit(0);
 }
