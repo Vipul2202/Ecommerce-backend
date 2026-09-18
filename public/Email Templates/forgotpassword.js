@@ -430,6 +430,56 @@ exports.getBookingReminderEmail = (booking) => {
   `;
 };
 
+// Sent instead of getBookingReminderEmail for bookings made within 24h of
+// their own appointment — there's no meaningful Cancel/Reschedule window
+// left, so this just confirms the details with no action buttons.
+exports.getBookingConfirmedBeOnTimeEmail = (booking) => {
+  const { vehicle_registration, services, location, booking_date, booking_time, first_name } = booking;
+
+  const formatDate = (date) => {
+    if (!(date instanceof Date)) return date;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #00a0db; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Your Booking Is Confirmed</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hi ${first_name},</p>
+            <p style="font-size: 15px; color: #555;">
+              Just confirming your car detail is coming up shortly. Please be on time — as this booking was made less than 24 hours out, online cancellation and rescheduling aren't available for it.
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Vehicle:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
+              <tr><td><strong>Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
+              <tr><td><strong>Time:</strong></td><td>${booking_time}</td></tr>
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
+            </table>
+            <p style="margin-top: 24px; font-size: 12.5px; color: #999;">
+              Need to make a change urgently? Please call your location directly.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
 const formatDateDDMMYYYY = (date) => {
   if (!(date instanceof Date)) return date;
   const day = String(date.getDate()).padStart(2, "0");
