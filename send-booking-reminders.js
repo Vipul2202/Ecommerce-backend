@@ -1,19 +1,23 @@
 #!/usr/bin/env node
 /**
- * Sends the 48-hour reminder email (with Cancel/Reschedule links) for every
- * approved booking happening in 2 days' time (Perth calendar day) that
- * hasn't already been reminded.
+ * Sends the reminder email (with Cancel/Reschedule links) for approved,
+ * not-yet-reminded bookings happening tomorrow or the day after (Perth
+ * calendar day) — a rolling 1-2 day window, not just "exactly 2 days out".
  *
- * NOT scheduled automatically yet. Run manually while testing:
- *   node send-booking-reminders.js
+ * That window matters: a booking made after today's cron run, for a date
+ * exactly 2 days out, would otherwise fall between "too late for today's
+ * run" and "tomorrow's run checks the wrong day" and never get reminded.
+ * Catching tomorrow + the day after each run means anything missed on one
+ * day's run still gets picked up on the next, with no duplicate sends
+ * thanks to the reminder_sent flag.
  *
- * While REMINDER_TEST_MODE is not "false" in .env, every email is
- * redirected to REMINDER_TEST_EMAIL instead of the real customer, so this
- * is safe to run against the real database at any time.
+ * Scheduled daily via crontab (server timezone is already Australia/Perth,
+ * so this runs in local time with no UTC conversion needed):
+ *   0 8 * * * cd /home/backends/Ecommerce-backend && /usr/bin/node send-booking-reminders.js >> /var/log/booking-reminders.log 2>&1
  *
- * Once testing is done and REMINDER_TEST_MODE=false, add a daily crontab
- * entry (8:00am Perth = 00:00 UTC, fixed offset, no daylight saving):
- *   0 0 * * * cd /home/backends/Ecommerce-backend && /usr/bin/node send-booking-reminders.js >> /var/log/booking-reminders.log 2>&1
+ * Can also be run manually at any time — safe to run against the real
+ * database whenever, since REMINDER_TEST_MODE (when not "false") redirects
+ * every email to REMINDER_TEST_EMAIL instead of the real customer.
  */
 
 require('dotenv').config();
@@ -33,8 +37,10 @@ async function run() {
   // Perth (Australia/Perth) does not observe daylight saving, fixed UTC+8.
   const now = new Date();
   const perthNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  const rangeStart = new Date(Date.UTC(perthNow.getUTCFullYear(), perthNow.getUTCMonth(), perthNow.getUTCDate() + 2));
-  const rangeEnd = new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
+  // Rolling window: tomorrow through the day after (2 days), not just a
+  // single exact-day slice — see the file header for why.
+  const rangeStart = new Date(Date.UTC(perthNow.getUTCFullYear(), perthNow.getUTCMonth(), perthNow.getUTCDate() + 1));
+  const rangeEnd = new Date(Date.UTC(perthNow.getUTCFullYear(), perthNow.getUTCMonth(), perthNow.getUTCDate() + 3));
 
   console.log(`Looking for approved, not-yet-reminded bookings between ${rangeStart.toISOString()} and ${rangeEnd.toISOString()}`);
 
