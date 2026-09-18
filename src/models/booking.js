@@ -59,7 +59,19 @@ const bookingSchema=new mongoose.Schema({
     marketing_consent:{
         type:Boolean,
         default:false
-    }
+    },
+    reminder_sent:{
+        type:Boolean,
+        default:false
+    },
+    reschedule_history:[
+        {
+            previous_date: { type: Date },
+            previous_time: { type: String },
+            previous_services: [{ type: String }],
+            changed_at: { type: Date, default: Date.now }
+        }
+    ]
 },{
     timestamps:true
 
