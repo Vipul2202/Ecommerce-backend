@@ -1,8 +1,15 @@
-const { getBookingConfirmationEmail, getAdminNewBookingEmail, getBookingApprovalEmail } = require('../../../public/Email Templates/forgotpassword');
+const {
+  getBookingConfirmationEmail,
+  getAdminNewBookingEmail,
+  getBookingApprovalEmail,
+  getBookingRescheduleConfirmedEmail,
+  getAdminRescheduleApprovedEmail,
+} = require('../../../public/Email Templates/forgotpassword');
 const Booking = require('../../models/booking')
 const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
-const { createBookingCalendarEvent } = require("../../utils/zohoCalendar");
+const { upsertBookingCalendarEvent } = require("../../utils/zohoCalendar");
+const { notifyOwners } = require("../../utils/ownerNotify");
 const utils = require("../../utils/utils");
 
 exports.createBooking = async (req, res) => {
@@ -139,99 +146,123 @@ exports.confirmBooking = async (req, res) => {
       `);
     }
 
+    // A booking already carrying a calendar event was previously approved
+    // and has now been rescheduled by the customer — this approval is
+    // confirming that new time, not a first-time approval.
+    const isRescheduleApproval = !!booking.zoho_calendar_event_id;
+
     booking.is_verified = true;
     booking.booking_status = "approved";
     await booking.save();
 
-    const datatosend = {
-      booking_id: booking.booking_id,
-      car_type: booking.car_type,
-      vehicle_registration: booking.vehicle_registration,
-      location: booking.location,
-      services: booking.services,
-      booking_date: booking.booking_date,
-      booking_time: booking.booking_time,
-      first_name: booking.first_name,
-      last_name: booking.last_name,
-      email: booking.email,
-      phone: booking.phone,
-      booking_status: booking.booking_status,
-      message: booking.message || '',
-      link: `https://carsaloon.com.au/useForm/${booking_id}`
-    };
-
-    // ── 1. Send confirmation email to customer ────────────────
-    const userConfirmationHtml = getBookingApprovalEmail(datatosend);
-
-    if (booking.email) {
-      await sendEmail({
-        to: booking.email,
-        subject: "Your Booking Has Been Confirmed",
-        html: userConfirmationHtml,
-      }).catch((error) => {
-        console.error('Failed to send user confirmation email:', error);
-      });
-    } else {
-      console.error('Cannot send confirmation email: booking.email is missing');
-    }
-
-    // ── 2. Build admin notification data ───────────────────────
-    const adminNotificationData = {
-      booking_id: booking.booking_id,
-      vehicle_registration: booking.vehicle_registration,
-      location: booking.location,
-      services: booking.services,
-      booking_date: booking.booking_date,
-      booking_time: booking.booking_time,
-      first_name: booking.first_name,
-      email: booking.email,
-      phone: booking.phone,
-      booking_status: booking.booking_status,
-      link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`
-    };
-
-    const adminHtml = getAdminNewBookingEmail(adminNotificationData);
-    const adminemail = process.env.ADMIN_EMAIL;
-
-    // ── 3. Send email to admin ──────────────────────────────────
-    if (adminemail) {
-      await sendEmail({
-        to: adminemail,
-        subject: `Booking Approved - ${booking.vehicle_registration}`,
-        html: adminHtml,
-      }).catch((error) => {
-        console.error('Failed to send admin confirmation email:', error);
-      });
-    } else {
-      console.error('ADMIN_EMAIL environment variable is not set');
-    }
-
-    // ── 4. Send email to location-based recipients ──────────────
-    const locationEmails = {
-      myaree: process.env.MYAREE_EMAIL,
-      midland: process.env.MIDLAND_EMAIL,
-    };
-
-    const bookingLocation = booking.location ? booking.location.toLowerCase().trim() : '';
-    const locationEmail = locationEmails[bookingLocation];
-
-    if (locationEmail) {
-      await sendEmail({
-        to: locationEmail,
-        subject: `Booking Approved - ${booking.vehicle_registration} - ${booking.location}`,
-        html: adminHtml,
-      }).catch((error) => {
-        console.error('Failed to send location confirmation email:', error);
-      });
-    } else {
-      console.warn(`No location email configured for location: "${booking.location}". Check MIDLAND_EMAIL / MYAREE_EMAIL in .env`);
-    }
-
-    // ── 5. Add the booking to the location's Zoho Calendar ──────
     try {
-      await createBookingCalendarEvent(booking);
+      await upsertBookingCalendarEvent(booking);
     } catch (error) {
-      console.error('Failed to create Zoho Calendar event:', error.response?.data || error.message);
+      console.error('Failed to sync Zoho Calendar event:', error.response?.data || error.message);
+    }
+
+    if (isRescheduleApproval) {
+      // ── Customer: reschedule confirmed ─────────────────────────
+      if (booking.email) {
+        await sendEmail({
+          to: booking.email,
+          subject: "Your Booking Has Been Rescheduled",
+          html: getBookingRescheduleConfirmedEmail(booking),
+        }).catch((error) => {
+          console.error('Failed to send reschedule confirmation email:', error);
+        });
+      }
+
+      // ── Admin + location: reschedule approved ──────────────────
+      await notifyOwners({
+        booking,
+        subject: `Reschedule Approved - ${booking.vehicle_registration}`,
+        html: getAdminRescheduleApprovedEmail(booking),
+      });
+    } else {
+      const datatosend = {
+        booking_id: booking.booking_id,
+        car_type: booking.car_type,
+        vehicle_registration: booking.vehicle_registration,
+        location: booking.location,
+        services: booking.services,
+        booking_date: booking.booking_date,
+        booking_time: booking.booking_time,
+        first_name: booking.first_name,
+        last_name: booking.last_name,
+        email: booking.email,
+        phone: booking.phone,
+        booking_status: booking.booking_status,
+        message: booking.message || '',
+        link: `https://carsaloon.com.au/useForm/${booking_id}`
+      };
+
+      // ── 1. Send confirmation email to customer ────────────────
+      const userConfirmationHtml = getBookingApprovalEmail(datatosend);
+
+      if (booking.email) {
+        await sendEmail({
+          to: booking.email,
+          subject: "Your Booking Has Been Confirmed",
+          html: userConfirmationHtml,
+        }).catch((error) => {
+          console.error('Failed to send user confirmation email:', error);
+        });
+      } else {
+        console.error('Cannot send confirmation email: booking.email is missing');
+      }
+
+      // ── 2. Build admin notification data ───────────────────────
+      const adminNotificationData = {
+        booking_id: booking.booking_id,
+        vehicle_registration: booking.vehicle_registration,
+        location: booking.location,
+        services: booking.services,
+        booking_date: booking.booking_date,
+        booking_time: booking.booking_time,
+        first_name: booking.first_name,
+        email: booking.email,
+        phone: booking.phone,
+        booking_status: booking.booking_status,
+        link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`
+      };
+
+      const adminHtml = getAdminNewBookingEmail(adminNotificationData);
+      const adminemail = process.env.ADMIN_EMAIL;
+
+      // ── 3. Send email to admin ──────────────────────────────────
+      if (adminemail) {
+        await sendEmail({
+          to: adminemail,
+          subject: `Booking Approved - ${booking.vehicle_registration}`,
+          html: adminHtml,
+        }).catch((error) => {
+          console.error('Failed to send admin confirmation email:', error);
+        });
+      } else {
+        console.error('ADMIN_EMAIL environment variable is not set');
+      }
+
+      // ── 4. Send email to location-based recipients ──────────────
+      const locationEmails = {
+        myaree: process.env.MYAREE_EMAIL,
+        midland: process.env.MIDLAND_EMAIL,
+      };
+
+      const bookingLocation = booking.location ? booking.location.toLowerCase().trim() : '';
+      const locationEmail = locationEmails[bookingLocation];
+
+      if (locationEmail) {
+        await sendEmail({
+          to: locationEmail,
+          subject: `Booking Approved - ${booking.vehicle_registration} - ${booking.location}`,
+          html: adminHtml,
+        }).catch((error) => {
+          console.error('Failed to send location confirmation email:', error);
+        });
+      } else {
+        console.warn(`No location email configured for location: "${booking.location}". Check MIDLAND_EMAIL / MYAREE_EMAIL in .env`);
+      }
     }
 
     return res.status(200).send(`

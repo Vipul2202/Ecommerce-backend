@@ -75,26 +75,12 @@ const addOneHour = (timeStr) => {
   return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
 };
 
-// Creates a calendar event in the Zoho calendar for the booking's location.
-// Returns false (without throwing) if the location has no calendar configured.
-exports.createBookingCalendarEvent = async (booking) => {
-  const locationKey = booking.location ? String(booking.location).toLowerCase().trim() : '';
-  const calendarUid = CALENDAR_UIDS[locationKey];
-
-  if (!calendarUid) {
-    console.warn(`Zoho Calendar: no calendar configured for location "${booking.location}"`);
-    return false;
-  }
-
-  const accessToken = await getAccessToken();
-  const apiBase = getCalendarApiBase();
-  const url = `${apiBase}/calendars/${calendarUid}/events`;
-
+const buildEventData = (booking) => {
   const startTime = formatDateTime(booking.booking_date, booking.booking_time);
   const endTime = formatDateTime(booking.booking_date, addOneHour(booking.booking_time));
   const servicesList = Array.isArray(booking.services) ? booking.services.join(', ') : (booking.services || '');
 
-  const eventdata = {
+  return {
     title: `${booking.vehicle_registration} - ${booking.first_name}`,
     dateandtime: {
       timezone: TIMEZONE,
@@ -109,11 +95,105 @@ exports.createBookingCalendarEvent = async (booking) => {
     ].join('\n'),
     reminders: [{ action: 'popup', minutes: '-60' }],
   };
+};
+
+const getCalendarUidForBooking = (booking) => {
+  const locationKey = booking.location ? String(booking.location).toLowerCase().trim() : '';
+  return CALENDAR_UIDS[locationKey];
+};
+
+// Creates a calendar event in the Zoho calendar for the booking's location.
+// Returns null if the location has no calendar configured. On success,
+// returns { uid, etag } identifying the created event.
+const createBookingCalendarEvent = async (booking) => {
+  const calendarUid = getCalendarUidForBooking(booking);
+  if (!calendarUid) {
+    console.warn(`Zoho Calendar: no calendar configured for location "${booking.location}"`);
+    return null;
+  }
+
+  const accessToken = await getAccessToken();
+  const url = `${getCalendarApiBase()}/calendars/${calendarUid}/events`;
 
   const response = await axios.post(url, null, {
+    params: { eventdata: JSON.stringify(buildEventData(booking)) },
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+  });
+
+  const event = response?.data?.events?.[0];
+  if (!event?.uid) {
+    throw new Error('Zoho Calendar create-event response missing event uid');
+  }
+  return { uid: event.uid, etag: event.etag };
+};
+
+// Updates an existing event in place (used when a booking is rescheduled).
+// Requires booking.zoho_calendar_event_id and booking.zoho_calendar_event_etag
+// from a prior create/update. Returns { uid, etag } for the updated event.
+const updateBookingCalendarEvent = async (booking) => {
+  const calendarUid = getCalendarUidForBooking(booking);
+  if (!calendarUid) {
+    console.warn(`Zoho Calendar: no calendar configured for location "${booking.location}"`);
+    return null;
+  }
+
+  const accessToken = await getAccessToken();
+  const url = `${getCalendarApiBase()}/calendars/${calendarUid}/events/${booking.zoho_calendar_event_id}`;
+
+  const eventdata = {
+    ...buildEventData(booking),
+    etag: booking.zoho_calendar_event_etag,
+  };
+
+  const response = await axios.put(url, null, {
     params: { eventdata: JSON.stringify(eventdata) },
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
   });
 
-  return response?.data;
+  const event = response?.data?.events?.[0];
+  if (!event?.uid) {
+    throw new Error('Zoho Calendar update-event response missing event uid');
+  }
+  return { uid: event.uid, etag: event.etag };
+};
+
+// Deletes the calendar event tied to a booking (used when a booking is
+// cancelled). Safe to call even if the booking never had one.
+const deleteBookingCalendarEvent = async (booking) => {
+  if (!booking.zoho_calendar_event_id) return;
+  const calendarUid = getCalendarUidForBooking(booking);
+  if (!calendarUid) return;
+
+  const accessToken = await getAccessToken();
+  const url = `${getCalendarApiBase()}/calendars/${calendarUid}/events/${booking.zoho_calendar_event_id}`;
+
+  await axios.delete(url, {
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      etag: booking.zoho_calendar_event_etag,
+    },
+  });
+};
+
+// Creates the event if the booking doesn't have one yet, otherwise updates
+// the existing one in place. Mutates and saves the booking's
+// zoho_calendar_event_id / zoho_calendar_event_etag fields.
+const upsertBookingCalendarEvent = async (booking) => {
+  const result = booking.zoho_calendar_event_id
+    ? await updateBookingCalendarEvent(booking)
+    : await createBookingCalendarEvent(booking);
+
+  if (!result) return null;
+
+  booking.zoho_calendar_event_id = result.uid;
+  booking.zoho_calendar_event_etag = result.etag;
+  await booking.save();
+  return result;
+};
+
+module.exports = {
+  createBookingCalendarEvent,
+  updateBookingCalendarEvent,
+  deleteBookingCalendarEvent,
+  upsertBookingCalendarEvent,
 };

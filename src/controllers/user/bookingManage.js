@@ -1,10 +1,10 @@
 const {
   getOwnerBookingCancelledByCustomerEmail,
-  getOwnerBookingRescheduledByCustomerEmail,
+  getOwnerRescheduleRequestEmail,
 } = require('../../../public/Email Templates/forgotpassword');
 const Booking = require('../../models/booking');
-const { sendEmail } = require('../../utils/sendemail');
-const { isTestMode, resolveRecipient, resolveSubject } = require('../../utils/reminderTestMode');
+const { deleteBookingCalendarEvent } = require('../../utils/zohoCalendar');
+const { notifyOwners, isTestMode } = require('../../utils/ownerNotify');
 
 const LOCATION_PHONES = {
   Myaree: '0430 170 164',
@@ -26,30 +26,6 @@ const canStillModify = (booking) => {
   const appointmentAt = getAppointmentDateTime(booking.booking_date, booking.booking_time);
   const cutoff = appointmentAt.getTime() - CHANGE_CUTOFF_HOURS * 60 * 60 * 1000;
   return Date.now() < cutoff;
-};
-
-const notifyOwners = async ({ to, subject, html }) => {
-  const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
-  await Promise.all(
-    recipients.map((realRecipient) =>
-      sendEmail({
-        to: resolveRecipient(realRecipient),
-        subject: resolveSubject(subject, realRecipient),
-        html,
-      }).catch((error) => {
-        console.error(`Failed to notify ${realRecipient}:`, error.message);
-      })
-    )
-  );
-};
-
-const getOwnerRecipients = (booking) => {
-  const locationEmails = {
-    myaree: process.env.MYAREE_EMAIL,
-    midland: process.env.MIDLAND_EMAIL,
-  };
-  const bookingLocation = booking.location ? booking.location.toLowerCase().trim() : '';
-  return [process.env.ADMIN_EMAIL, locationEmails[bookingLocation]];
 };
 
 exports.getManageBooking = async (req, res) => {
@@ -79,6 +55,8 @@ exports.getManageBooking = async (req, res) => {
   }
 };
 
+// Immediate — no approval needed. Cancels the booking and removes its
+// calendar event right away.
 exports.cancelBookingByCustomer = async (req, res) => {
   try {
     const { id } = req.params;
@@ -98,11 +76,16 @@ exports.cancelBookingByCustomer = async (req, res) => {
     booking.booking_cancel_reason = 'Cancelled by customer via reminder email';
     await booking.save();
 
-    const html = getOwnerBookingCancelledByCustomerEmail(booking);
+    try {
+      await deleteBookingCalendarEvent(booking);
+    } catch (error) {
+      console.error('Failed to delete Zoho Calendar event:', error.response?.data || error.message);
+    }
+
     await notifyOwners({
-      to: getOwnerRecipients(booking),
+      booking,
       subject: `Booking Cancelled by Customer - ${booking.vehicle_registration}`,
-      html,
+      html: getOwnerBookingCancelledByCustomerEmail(booking),
     });
 
     return res.status(200).json({ message: 'Booking cancelled successfully', testMode: isTestMode() });
@@ -112,6 +95,9 @@ exports.cancelBookingByCustomer = async (req, res) => {
   }
 };
 
+// Not immediate — puts the booking back to "pending" for the owner to
+// approve. Nothing is confirmed to the customer yet, and the calendar isn't
+// touched until that approval happens.
 exports.rescheduleBookingByCustomer = async (req, res) => {
   try {
     const { id } = req.params;
@@ -165,23 +151,22 @@ exports.rescheduleBookingByCustomer = async (req, res) => {
     booking.booking_date = date;
     booking.booking_time = time;
     booking.services = services;
+    booking.booking_status = 'pending';
+    booking.is_verified = false;
     booking.reminder_sent = false;
     await booking.save();
 
-    const html = getOwnerBookingRescheduledByCustomerEmail(booking, previous);
     await notifyOwners({
-      to: getOwnerRecipients(booking),
-      subject: `Booking Rescheduled by Customer - ${booking.vehicle_registration}`,
-      html,
+      booking,
+      subject: `Reschedule Request - ${booking.vehicle_registration} - Needs Approval`,
+      html: getOwnerRescheduleRequestEmail(booking, previous),
     });
 
     return res.status(200).json({
-      message: 'Booking rescheduled successfully',
+      message: "Reschedule request submitted — we'll confirm your new time shortly.",
       testMode: isTestMode(),
       data: {
-        booking_date: booking.booking_date,
-        booking_time: booking.booking_time,
-        services: booking.services,
+        booking_status: booking.booking_status,
       },
     });
   } catch (error) {

@@ -430,46 +430,41 @@ exports.getBookingReminderEmail = (booking) => {
   `;
 };
 
-exports.getOwnerBookingCancelledByCustomerEmail = (booking) => {
-  const {
-    booking_id,
-    location,
-    vehicle_registration,
-    services,
-    booking_date,
-    booking_time,
-    first_name,
-    email,
-    phone,
-  } = booking;
+const formatDateDDMMYYYY = (date) => {
+  if (!(date instanceof Date)) return date;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+};
 
-  const formatDate = (date) => {
-    if (!(date instanceof Date)) return date;
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+const formatServicesList = (services) =>
+  services && Array.isArray(services) ? services.join(', ') : services || 'N/A';
+
+// Sent to admin + the booking's location when a customer cancels their own
+// booking online (immediate, no approval needed).
+exports.getOwnerBookingCancelledByCustomerEmail = (booking) => {
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name, email, phone } = booking;
 
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
         <tr>
           <td style="padding: 20px 30px; background-color: #dc3545; color: #ffffff;">
-            <h1 style="margin: 0; font-size: 24px;">Customer Cancelled Booking</h1>
+            <h1 style="margin: 0; font-size: 24px;">Booking Cancelled by Customer</h1>
           </td>
         </tr>
         <tr>
           <td style="padding: 30px;">
             <p style="font-size: 15px; color: #555;">
-              ${first_name} cancelled their own booking online via the reminder email.
+              ${first_name} cancelled this booking online. No action is needed — it's already removed from the schedule and calendar.
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
-              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
-              <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
-              <tr><td><strong>Was Booked For:</strong></td><td>${formatDate(booking_date)} at ${booking_time}</td></tr>
-              <tr><td><strong>Customer Name:</strong></td><td>${first_name}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${formatServicesList(services)}</td></tr>
+              <tr><td><strong>Was Booked For:</strong></td><td>${formatDateDDMMYYYY(booking_date)} at ${booking_time}</td></tr>
+              <tr><td><strong>Customer:</strong></td><td>${first_name}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
             </table>
@@ -485,61 +480,125 @@ exports.getOwnerBookingCancelledByCustomerEmail = (booking) => {
   `;
 };
 
-exports.getOwnerBookingRescheduledByCustomerEmail = (booking, previous) => {
-  const {
-    location,
-    vehicle_registration,
-    services,
-    booking_date,
-    booking_time,
-    first_name,
-    email,
-    phone,
-  } = booking;
-
-  const formatDate = (date) => {
-    if (!(date instanceof Date)) return date;
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatServices = (services) => (services && Array.isArray(services) ? services.join(', ') : services || 'N/A');
+// Sent to admin + the booking's location when a customer requests a
+// reschedule online. The booking goes back to "pending" — this needs the
+// owner's approval before the customer's new time is confirmed.
+exports.getOwnerRescheduleRequestEmail = (booking, previous) => {
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name, email, phone } = booking;
 
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
         <tr>
           <td style="padding: 20px 30px; background-color: #f0ad4e; color: #ffffff;">
-            <h1 style="margin: 0; font-size: 24px;">Customer Rescheduled Booking</h1>
+            <h1 style="margin: 0; font-size: 24px;">Reschedule Request — Needs Approval</h1>
           </td>
         </tr>
         <tr>
           <td style="padding: 30px;">
             <p style="font-size: 15px; color: #555;">
-              ${first_name} rescheduled their own booking online via the reminder email.
+              ${first_name} has requested to reschedule this booking. It's now marked <strong>pending</strong> — please review and approve in the owner panel to confirm the new time with the customer.
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
-              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
-              <tr><td><strong>Customer Name:</strong></td><td>${first_name}</td></tr>
+              <tr><td><strong>Customer:</strong></td><td>${first_name}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
             </table>
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
               <tr>
                 <td width="50%" style="vertical-align: top; padding: 12px; background-color: #fdecec; border-radius: 6px 0 0 6px;">
-                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #b23b3b; text-transform: uppercase;">Previous</p>
-                  <p style="margin: 0; font-size: 14px; color: #333;">${formatDate(previous.booking_date)} at ${previous.booking_time}</p>
-                  <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServices(previous.services)}</p>
+                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #b23b3b; text-transform: uppercase;">Current</p>
+                  <p style="margin: 0; font-size: 14px; color: #333;">${formatDateDDMMYYYY(previous.booking_date)} at ${previous.booking_time}</p>
+                  <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServicesList(previous.services)}</p>
                 </td>
-                <td width="50%" style="vertical-align: top; padding: 12px; background-color: #e9f7ef; border-radius: 0 6px 6px 0;">
-                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #1a8754; text-transform: uppercase;">New</p>
-                  <p style="margin: 0; font-size: 14px; color: #333;">${formatDate(booking_date)} at ${booking_time}</p>
-                  <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServices(services)}</p>
+                <td width="50%" style="vertical-align: top; padding: 12px; background-color: #fff8e6; border-radius: 0 6px 6px 0;">
+                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: bold; color: #8a5a00; text-transform: uppercase;">Requested</p>
+                  <p style="margin: 0; font-size: 14px; color: #333;">${formatDateDDMMYYYY(booking_date)} at ${booking_time}</p>
+                  <p style="margin: 6px 0 0; font-size: 13px; color: #555;">${formatServicesList(services)}</p>
                 </td>
               </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
+// Sent to the customer once the owner approves their reschedule request.
+exports.getBookingRescheduleConfirmedEmail = (booking) => {
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name } = booking;
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #00a0db; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Your Booking Has Been Rescheduled</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hi ${first_name},</p>
+            <p style="font-size: 15px; color: #555;">
+              Good news — your reschedule request has been approved. Here's your updated booking:
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Vehicle:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${formatServicesList(services)}</td></tr>
+              <tr><td><strong>Date:</strong></td><td>${formatDateDDMMYYYY(booking_date)}</td></tr>
+              <tr><td><strong>Time:</strong></td><td>${booking_time}</td></tr>
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
+            </table>
+            <p style="margin-top: 24px; font-size: 14px; color: #7a4b00; background-color: #fff8e6; border-left: 4px solid #f0ad4e; padding: 12px 16px; border-radius: 4px;">
+              Please remove all valuables from your car. We practice safe cleaning and try not to touch anything but we are not responsible for the loss of any personal or valuable item.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
+// Sent to admin + the booking's location once a reschedule request is
+// approved, confirming the final new date/time/services for their records.
+exports.getAdminRescheduleApprovedEmail = (booking) => {
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name, email, phone } = booking;
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #28a745; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Reschedule Approved</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 15px; color: #555;">
+              The reschedule request below has been approved and confirmed with the customer. The calendar has been updated to the new time.
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
+              <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${formatServicesList(services)}</td></tr>
+              <tr><td><strong>New Date:</strong></td><td>${formatDateDDMMYYYY(booking_date)}</td></tr>
+              <tr><td><strong>New Time:</strong></td><td>${booking_time}</td></tr>
+              <tr><td><strong>Customer:</strong></td><td>${first_name}</td></tr>
+              <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
+              <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
             </table>
           </td>
         </tr>
