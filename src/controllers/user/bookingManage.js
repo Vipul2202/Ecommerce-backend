@@ -1,10 +1,14 @@
 const {
   getOwnerBookingCancelledByCustomerEmail,
   getOwnerRescheduleRequestEmail,
+  getBookingRescheduleDeclinedEmail,
 } = require('../../../public/Email Templates/forgotpassword');
 const Booking = require('../../models/booking');
 const { deleteBookingCalendarEvent } = require('../../utils/zohoCalendar');
 const { notifyOwners, isTestMode } = require('../../utils/ownerNotify');
+const { sendEmail } = require('../../utils/sendemail');
+
+const API_BASE = 'https://api.carsaloon.com.au';
 
 const LOCATION_PHONES = {
   Myaree: '0430 170 164',
@@ -21,11 +25,27 @@ const getAppointmentDateTime = (bookingDate, bookingTime) => {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hh - 8, mm));
 };
 
-const canStillModify = (booking) => {
-  if (booking.booking_status !== 'approved') return false;
+// Returns null if the booking can still be cancelled/rescheduled online, or
+// a specific reason code otherwise. Keeping this specific (rather than a
+// plain true/false) matters — "you already have a reschedule pending" and
+// "it's within 24 hours" are very different situations for the customer.
+const getBlockReason = (booking) => {
+  if (booking.booking_status === 'cancelled') return 'cancelled';
+  if (booking.booking_status === 'pending') return 'pending_approval';
+  if (booking.booking_status !== 'approved') return 'not_available';
+
   const appointmentAt = getAppointmentDateTime(booking.booking_date, booking.booking_time);
   const cutoff = appointmentAt.getTime() - CHANGE_CUTOFF_HOURS * 60 * 60 * 1000;
-  return Date.now() < cutoff;
+  if (Date.now() >= cutoff) return 'too_late';
+
+  return null;
+};
+
+const BLOCK_MESSAGES = {
+  cancelled: 'This booking has already been cancelled.',
+  pending_approval: "You already have a change pending approval for this booking — we'll email you once it's confirmed.",
+  not_available: 'This booking can no longer be changed online. Please call us directly.',
+  too_late: 'This booking can no longer be changed online. Please call us directly.',
 };
 
 exports.getManageBooking = async (req, res) => {
@@ -36,6 +56,8 @@ exports.getManageBooking = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
+    const blockReason = getBlockReason(booking);
+
     return res.status(200).json({
       data: {
         booking_id: booking.booking_id,
@@ -45,7 +67,9 @@ exports.getManageBooking = async (req, res) => {
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
         booking_status: booking.booking_status,
-        canModify: canStillModify(booking),
+        canModify: blockReason === null,
+        blockReason,
+        blockMessage: blockReason ? BLOCK_MESSAGES[blockReason] : null,
         locationPhone: LOCATION_PHONES[booking.location] || '',
       },
     });
@@ -65,9 +89,11 @@ exports.cancelBookingByCustomer = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    if (!canStillModify(booking)) {
+    const blockReason = getBlockReason(booking);
+    if (blockReason) {
       return res.status(400).json({
-        message: 'This booking can no longer be changed online. Please call us directly.',
+        message: BLOCK_MESSAGES[blockReason],
+        reason: blockReason,
         locationPhone: LOCATION_PHONES[booking.location] || '',
       });
     }
@@ -130,9 +156,11 @@ exports.rescheduleBookingByCustomer = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    if (!canStillModify(booking)) {
+    const blockReason = getBlockReason(booking);
+    if (blockReason) {
       return res.status(400).json({
-        message: 'This booking can no longer be changed online. Please call us directly.',
+        message: BLOCK_MESSAGES[blockReason],
+        reason: blockReason,
         locationPhone: LOCATION_PHONES[booking.location] || '',
       });
     }
@@ -159,7 +187,10 @@ exports.rescheduleBookingByCustomer = async (req, res) => {
     await notifyOwners({
       booking,
       subject: `Reschedule Request - ${booking.vehicle_registration} - Needs Approval`,
-      html: getOwnerRescheduleRequestEmail(booking, previous),
+      html: getOwnerRescheduleRequestEmail(booking, previous, {
+        approveLink: `${API_BASE}/user/confirm-booking/${booking._id}`,
+        declineLink: `${API_BASE}/user/decline-reschedule/${booking._id}`,
+      }),
     });
 
     return res.status(200).json({
@@ -172,5 +203,81 @@ exports.rescheduleBookingByCustomer = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+const renderInfoPage = (title, message) => `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <style>
+      body { font-family: Arial, sans-serif; background-color: #f4f8fb; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+      .message-box { background-color: #eef6ff; border: 1px solid #a6c8e0; padding: 30px 40px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; max-width: 420px; }
+      .message-box h1 { color: #2b5f8a; margin-bottom: 10px; }
+      .message-box p { color: #3d3d3d; font-size: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="message-box">
+      <h1>${title}</h1>
+      <p>${message}</p>
+    </div>
+  </body>
+  </html>
+`;
+
+// GET /user/decline-reschedule/:id — clicked from the reschedule-request
+// email. Keeps the booking at its previous (already-approved) date/time/
+// services instead of the customer's requested change. Idempotent, since
+// email links get auto-visited by link-scanners and retried clients.
+exports.declineReschedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).send(renderInfoPage('Not Found', 'This booking could not be found.'));
+    }
+
+    if (booking.booking_status !== 'pending' || booking.reschedule_history.length === 0) {
+      return res.status(200).send(renderInfoPage(
+        'Already Handled',
+        'This reschedule request has already been handled — no further action is needed.'
+      ));
+    }
+
+    const lastRequest = booking.reschedule_history[booking.reschedule_history.length - 1];
+    const requested = {
+      booking_date: booking.booking_date,
+      booking_time: booking.booking_time,
+      services: booking.services,
+    };
+
+    booking.booking_date = lastRequest.previous_date;
+    booking.booking_time = lastRequest.previous_time;
+    booking.services = lastRequest.previous_services;
+    booking.booking_status = 'approved';
+    booking.is_verified = true;
+    await booking.save();
+
+    if (booking.email) {
+      await sendEmail({
+        to: booking.email,
+        subject: "We Couldn't Move Your Booking",
+        html: getBookingRescheduleDeclinedEmail(booking, requested),
+      }).catch((error) => {
+        console.error('Failed to send reschedule-declined email:', error);
+      });
+    }
+
+    return res.status(200).send(renderInfoPage(
+      'Reschedule Declined',
+      "The customer's original booking has been kept, and they've been notified."
+    ));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send(renderInfoPage('Error', 'Something went wrong.'));
   }
 };

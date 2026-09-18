@@ -10,6 +10,7 @@ router.get("/confirm-booking/:id",trimRequest.all,controller.confirmBooking)
 router.get("/manage-booking/:id",trimRequest.all,manageController.getManageBooking)
 router.post("/manage-booking/:id/cancel",trimRequest.all,manageController.cancelBookingByCustomer)
 router.post("/manage-booking/:id/reschedule",trimRequest.all,manageController.rescheduleBookingByCustomer)
+router.get("/decline-reschedule/:id",trimRequest.all,manageController.declineReschedule)
 
 
 
