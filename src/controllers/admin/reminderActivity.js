@@ -2,11 +2,78 @@
 // (send-booking-reminders.js) so "did anything go out recently" can be
 // checked from the panel instead of tailing the server log.
 
+const fs = require("fs");
+const path = require("path");
 const Booking = require("../../models/booking");
 const { getReminderPlan, getAppointmentDateTime, buildEmailHtml, SUBJECTS } = require("../../utils/sendBookingReminder");
+const { isTestMode } = require("../../utils/reminderTestMode");
 const utils = require("../../utils/utils");
 
 const MAX_HOURS = 24 * 30;
+const ENV_PATH = path.join(__dirname, "../../../.env");
+
+// Lets the owner panel show at a glance whether reminder/rectification
+// emails are currently redirected to a test inbox or actually reaching
+// customers, without anyone needing to check the server's .env directly.
+exports.getTestModeStatus = async (req, res) => {
+  try {
+    const testMode = isTestMode();
+    return res.status(200).json({
+      testMode,
+      testEmail: testMode ? process.env.REMINDER_TEST_EMAIL || null : null,
+    });
+  } catch (error) {
+    console.log(error);
+    utils.handleError(res, error);
+  }
+};
+
+// Flips REMINDER_TEST_MODE on the server: updates .env on disk (so the
+// reminder cron job, which re-reads .env fresh on every 15-minute run,
+// picks it up automatically) and this running process's own env (so
+// admin-triggered sends, like the rectification button, reflect it
+// immediately without a restart).
+exports.setTestMode = async (req, res) => {
+  try {
+    const { testMode, testEmail } = req.body || {};
+    if (typeof testMode !== "boolean") {
+      return res.status(400).json({ message: "testMode (boolean) is required" });
+    }
+    if (testMode && !testEmail && !process.env.REMINDER_TEST_EMAIL) {
+      return res.status(400).json({ message: "Provide testEmail — no REMINDER_TEST_EMAIL is set yet" });
+    }
+
+    let envContent;
+    try {
+      envContent = fs.readFileSync(ENV_PATH, "utf8");
+    } catch (error) {
+      return res.status(500).json({ message: "Could not read .env on the server" });
+    }
+
+    const lines = envContent.split("\n");
+    const setLine = (key, value) => {
+      const idx = lines.findIndex((l) => l.startsWith(`${key}=`));
+      const line = `${key}=${value}`;
+      if (idx >= 0) lines[idx] = line;
+      else lines.push(line);
+    };
+
+    setLine("REMINDER_TEST_MODE", testMode ? "true" : "false");
+    if (testMode && testEmail) setLine("REMINDER_TEST_EMAIL", testEmail);
+    fs.writeFileSync(ENV_PATH, lines.join("\n"));
+
+    process.env.REMINDER_TEST_MODE = testMode ? "true" : "false";
+    if (testMode && testEmail) process.env.REMINDER_TEST_EMAIL = testEmail;
+
+    return res.status(200).json({
+      testMode,
+      testEmail: testMode ? process.env.REMINDER_TEST_EMAIL || null : null,
+    });
+  } catch (error) {
+    console.log(error);
+    utils.handleError(res, error);
+  }
+};
 
 exports.listRecentReminders = async (req, res) => {
   try {
