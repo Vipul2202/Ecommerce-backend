@@ -126,4 +126,4 @@ const maybeSendReminder = async (bookingId) => {
   }
 };
 
-module.exports = { maybeSendReminder, getReminderPlan, getAppointmentDateTime };
+module.exports = { maybeSendReminder, getReminderPlan, getAppointmentDateTime, buildEmailHtml, SUBJECTS };

@@ -6,6 +6,7 @@ router.use(require('./product'))
 
 router.use(require('./order'))
 router.use(require('./reminderRectification'))
+router.use(require('./reminderActivity'))
 
 
 module.exports = router
