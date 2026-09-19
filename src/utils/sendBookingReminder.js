@@ -85,6 +85,18 @@ const maybeSendReminder = async (bookingId) => {
   const { type, triggerAt } = getReminderPlan(booking);
   if (Date.now() < triggerAt.getTime()) return false;
 
+  // The trigger point being in the past only means "due" for a booking
+  // whose appointment is still ahead of us. If the appointment itself has
+  // already passed (an old booking that was never notified for whatever
+  // reason), silently retire it instead of sending a "coming up" or
+  // "be on time" email for something that already happened.
+  const appointmentAt = getAppointmentDateTime(booking.booking_date, booking.booking_time);
+  if (Date.now() >= appointmentAt.getTime()) {
+    await Booking.updateOne({ _id: booking._id, reminder_sent: { $ne: true } }, { $set: { reminder_sent: true } });
+    console.log(`Retired without emailing (appointment already passed): ${booking.booking_id} (${booking.vehicle_registration}, ${booking.location})`);
+    return false;
+  }
+
   // Atomic claim: flip reminder_sent first, as a single DB operation, so
   // two overlapping checks can never both send for the same booking.
   const claimed = await Booking.findOneAndUpdate(
