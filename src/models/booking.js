@@ -64,6 +64,13 @@ const bookingSchema=new mongoose.Schema({
         type:Boolean,
         default:false
     },
+    rectification_sent:{
+        type:Boolean,
+        default:false
+    },
+    rectification_sent_at:{
+        type:Date
+    },
     zoho_calendar_event_id:{
         type:String
     },
