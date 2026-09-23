@@ -1,21 +1,20 @@
-// Single source of truth for "which notice does this booking need, when
-// should it go out, and has it gone out yet." Called by the periodic
-// checker script (send-booking-reminders.js), which runs every 15 minutes
-// and asks this for every approved, not-yet-notified booking.
+// Single source of truth for "when should this booking's reminder go out,
+// and has it gone out yet." Called by the periodic checker script
+// (send-booking-reminders.js), which runs every 15 minutes and asks this
+// for every approved, not-yet-notified booking.
 //
-// Three tiers, based on how much lead time existed between when the
-// booking was made and the appointment itself:
-//   - 48h+ lead time  -> reminder (+ Cancel/Reschedule) sent 48h before
-//   - 24-48h lead time -> reminder (+ Cancel/Reschedule) sent 36h before
-//   - under 24h lead time -> "be on time" confirmation sent 2h before,
-//     no Cancel/Reschedule (there's no real window left for those anyway)
+// Two tiers, both using the same "be on time" email (no Cancel/Reschedule
+// links — that self-service option has been turned off, see
+// src/controllers/user/bookingManage.js):
+//   - 24h+ lead time  -> sent 24h before the appointment
+//   - under 24h lead time -> sent 2h before (there's no earlier window left)
 //
 // If a booking's trigger point has already passed by the time it's first
 // checked (e.g. approved late), it sends on the very next check instead of
 // waiting — nothing needs to line up with when a fixed daily job runs.
 
 const Booking = require('../models/booking');
-const { getBookingReminderEmail, getBookingConfirmedBeOnTimeEmail } = require('../../public/Email Templates/forgotpassword');
+const { getBookingConfirmedBeOnTimeEmail } = require('../../public/Email Templates/forgotpassword');
 const { sendEmail } = require('./sendemail');
 const { resolveRecipient, resolveSubject } = require('./reminderTestMode');
 
@@ -36,11 +35,8 @@ const getReminderPlan = (booking) => {
   const appointmentAt = getAppointmentDateTime(booking.booking_date, booking.booking_time);
   const leadTimeHours = (appointmentAt.getTime() - booking.createdAt.getTime()) / HOUR_MS;
 
-  if (leadTimeHours >= 48) {
-    return { type: 'reminder', triggerAt: new Date(appointmentAt.getTime() - 48 * HOUR_MS) };
-  }
   if (leadTimeHours >= 24) {
-    return { type: 'reminder', triggerAt: new Date(appointmentAt.getTime() - 36 * HOUR_MS) };
+    return { type: 'reminder', triggerAt: new Date(appointmentAt.getTime() - 24 * HOUR_MS) };
   }
   return { type: 'confirmation', triggerAt: new Date(appointmentAt.getTime() - 2 * HOUR_MS) };
 };
@@ -50,26 +46,17 @@ const SUBJECTS = {
   confirmation: 'Your booking is confirmed — see you soon',
 };
 
+// Same template either way — the "be on time" confirmation, with no
+// Cancel/Reschedule links. frontendUrl is unused now but kept in the
+// signature so callers don't need to change.
 const buildEmailHtml = (booking, type, frontendUrl) => {
-  if (type === 'confirmation') {
-    return getBookingConfirmedBeOnTimeEmail({
-      vehicle_registration: booking.vehicle_registration,
-      services: booking.services,
-      location: booking.location,
-      booking_date: booking.booking_date,
-      booking_time: booking.booking_time,
-      first_name: booking.first_name,
-    });
-  }
-  return getBookingReminderEmail({
+  return getBookingConfirmedBeOnTimeEmail({
     vehicle_registration: booking.vehicle_registration,
     services: booking.services,
     location: booking.location,
     booking_date: booking.booking_date,
     booking_time: booking.booking_time,
     first_name: booking.first_name,
-    cancel_link: `${frontendUrl}/manage-booking/${booking._id}?action=cancel`,
-    reschedule_link: `${frontendUrl}/manage-booking/${booking._id}?action=reschedule`,
   });
 };
 

@@ -17,6 +17,13 @@ const LOCATION_PHONES = {
 
 const CHANGE_CUTOFF_HOURS = 24;
 
+// Online self-service cancel/reschedule is turned off. The page and these
+// endpoints stay in place — customers holding an old reminder email with a
+// cancel/reschedule link (or anyone else who finds the URL) just always
+// get blocked now, same as any other blockReason, instead of the routes
+// being removed outright.
+const MANAGE_BOOKING_DISABLED = true;
+
 // booking_date is stored as UTC midnight representing the Perth calendar day;
 // booking_time is a Perth wall-clock "HH:mm" (fixed UTC+8, no daylight saving).
 const getAppointmentDateTime = (bookingDate, bookingTime) => {
@@ -30,6 +37,7 @@ const getAppointmentDateTime = (bookingDate, bookingTime) => {
 // plain true/false) matters — "you already have a reschedule pending" and
 // "it's within 24 hours" are very different situations for the customer.
 const getBlockReason = (booking) => {
+  if (MANAGE_BOOKING_DISABLED) return 'disabled';
   if (booking.booking_status === 'cancelled') return 'cancelled';
   if (booking.booking_status === 'pending') return 'pending_approval';
   if (booking.booking_status !== 'approved') return 'not_available';
@@ -42,6 +50,7 @@ const getBlockReason = (booking) => {
 };
 
 const BLOCK_MESSAGES = {
+  disabled: 'Online cancellation and rescheduling is no longer available. Please call us directly to make changes to your booking.',
   cancelled: 'This booking has already been cancelled.',
   pending_approval: "You already have a change pending approval for this booking — we'll email you once it's confirmed.",
   not_available: 'This booking can no longer be changed online. Please call us directly.',
