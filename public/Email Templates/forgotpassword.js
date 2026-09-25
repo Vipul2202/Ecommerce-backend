@@ -454,9 +454,9 @@ exports.getBookingConfirmedBeOnTimeEmail = (booking) => {
         </tr>
         <tr>
           <td style="padding: 30px;">
-            <p style="font-size: 16px; color: #333;">Hi ${first_name},</p>
+            <p style="font-size: 16px; color: #333;">Hi ${first_name}!</p>
             <p style="font-size: 15px; color: #555;">
-              Just confirming your car detail is coming up shortly. Please be on time — as this booking was made less than 24 hours out, online cancellation and rescheduling aren't available for it.
+              Just a reminder that your appointment with Car Saloon is coming up shortly. We look forward to seeing you.
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
               <tr><td><strong>Vehicle:</strong></td><td>${vehicle_registration}</td></tr>
@@ -465,9 +465,6 @@ exports.getBookingConfirmedBeOnTimeEmail = (booking) => {
               <tr><td><strong>Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Location:</strong></td><td>${location}</td></tr>
             </table>
-            <p style="margin-top: 24px; font-size: 12.5px; color: #999;">
-              Need to make a change urgently? Please call your location directly.
-            </p>
           </td>
         </tr>
         <tr>
