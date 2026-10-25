@@ -52,6 +52,22 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: "Validation failed", errors: validationErrors });
     }
 
+    // Guards against the same vehicle being booked twice for the same
+    // slot — an accidental double-submit (double-click, page refresh) or
+    // a repeat form submission. Only blocks against still-active bookings,
+    // so re-booking after a cancellation is unaffected.
+    const duplicateBooking = await Booking.findOne({
+      vehicle_registration: data.registration.trim().toUpperCase(),
+      booking_date: data.date,
+      booking_time: data.time,
+      booking_status: { $ne: 'cancelled' },
+    });
+    if (duplicateBooking) {
+      return res.status(409).json({
+        message: "A booking for this vehicle at this date and time already exists.",
+      });
+    }
+
     const booking_id = utils.generateBookingId();
 
     const booking = await Booking.create({
