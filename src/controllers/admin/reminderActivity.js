@@ -75,6 +75,69 @@ exports.setTestMode = async (req, res) => {
   }
 };
 
+// Same idea as getTestModeStatus/setTestMode above, but for
+// CUSTOMER_EMAIL_TEST_MODE — the toggle that only redirects customer-facing
+// emails (approval, cancellation, booking-deleted) while leaving
+// admin/branch notifications real. Kept separate from REMINDER_TEST_MODE on
+// purpose: that one also redirects admin/branch, which isn't what you want
+// when testing a flow that admin/branch need to see land in a real inbox.
+exports.getCustomerTestModeStatus = async (req, res) => {
+  try {
+    const testMode = process.env.CUSTOMER_EMAIL_TEST_MODE === 'true';
+    return res.status(200).json({
+      testMode,
+      testEmail: testMode ? process.env.REMINDER_TEST_EMAIL || null : null,
+    });
+  } catch (error) {
+    console.log(error);
+    utils.handleError(res, error);
+  }
+};
+
+exports.setCustomerTestMode = async (req, res) => {
+  try {
+    const { testMode, testEmail } = req.body || {};
+    if (typeof testMode !== "boolean") {
+      return res.status(400).json({ message: "testMode (boolean) is required" });
+    }
+    if (testMode && !testEmail && !process.env.REMINDER_TEST_EMAIL) {
+      return res.status(400).json({ message: "Provide testEmail — no REMINDER_TEST_EMAIL is set yet" });
+    }
+
+    let envContent;
+    try {
+      envContent = fs.readFileSync(ENV_PATH, "utf8");
+    } catch (error) {
+      return res.status(500).json({ message: "Could not read .env on the server" });
+    }
+
+    const lines = envContent.split("\n");
+    const setLine = (key, value) => {
+      const idx = lines.findIndex((l) => l.startsWith(`${key}=`));
+      const line = `${key}=${value}`;
+      if (idx >= 0) lines[idx] = line;
+      else lines.push(line);
+    };
+
+    setLine("CUSTOMER_EMAIL_TEST_MODE", testMode ? "true" : "false");
+    // Shares REMINDER_TEST_EMAIL as the redirect target with the reminder
+    // toggle above, so setting it from either panel updates both.
+    if (testMode && testEmail) setLine("REMINDER_TEST_EMAIL", testEmail);
+    fs.writeFileSync(ENV_PATH, lines.join("\n"));
+
+    process.env.CUSTOMER_EMAIL_TEST_MODE = testMode ? "true" : "false";
+    if (testMode && testEmail) process.env.REMINDER_TEST_EMAIL = testEmail;
+
+    return res.status(200).json({
+      testMode,
+      testEmail: testMode ? process.env.REMINDER_TEST_EMAIL || null : null,
+    });
+  } catch (error) {
+    console.log(error);
+    utils.handleError(res, error);
+  }
+};
+
 exports.listRecentReminders = async (req, res) => {
   try {
     // Either an explicit cutoff (?since=<ISO timestamp>, e.g. "today at

@@ -6,6 +6,8 @@ const ownerAuth = require('../../middleware/ownerAuth')
 
 router.get("/reminders/test-mode-status", trimRequest.all, ownerAuth, controller.getTestModeStatus)
 router.post("/reminders/test-mode-status", trimRequest.all, ownerAuth, controller.setTestMode)
+router.get("/reminders/customer-test-mode-status", trimRequest.all, ownerAuth, controller.getCustomerTestModeStatus)
+router.post("/reminders/customer-test-mode-status", trimRequest.all, ownerAuth, controller.setCustomerTestMode)
 router.get("/reminders/recent", trimRequest.all, ownerAuth, controller.listRecentReminders)
 router.get("/reminders/:id/sent-preview", trimRequest.all, ownerAuth, controller.previewSentReminder)
 

@@ -4,12 +4,14 @@ const {
   getBookingApprovalEmail,
   getBookingRescheduleConfirmedEmail,
   getAdminRescheduleApprovedEmail,
+  getBookingDeletedEmail,
 } = require('../../../public/Email Templates/forgotpassword');
 const Booking = require('../../models/booking')
 const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
 const { upsertBookingCalendarEvent, deleteBookingCalendarEvent } = require("../../utils/zohoCalendar");
 const { notifyOwners } = require("../../utils/ownerNotify");
+const { resolveCustomerRecipient, resolveCustomerSubject } = require("../../utils/customerEmailTestMode");
 const utils = require("../../utils/utils");
 
 exports.createBooking = async (req, res) => {
@@ -186,8 +188,8 @@ exports.confirmBooking = async (req, res) => {
       // ── Customer: reschedule confirmed ─────────────────────────
       if (booking.email) {
         await sendEmail({
-          to: booking.email,
-          subject: "Your Booking Has Been Rescheduled",
+          to: resolveCustomerRecipient(booking.email),
+          subject: resolveCustomerSubject("Your Booking Has Been Rescheduled", booking.email),
           html: getBookingRescheduleConfirmedEmail(booking),
         }).catch((error) => {
           console.error('Failed to send reschedule confirmation email:', error);
@@ -233,8 +235,8 @@ exports.confirmBooking = async (req, res) => {
 
       if (booking.email) {
         await sendEmail({
-          to: booking.email,
-          subject: "Your Booking Has Been Confirmed",
+          to: resolveCustomerRecipient(booking.email),
+          subject: resolveCustomerSubject("Your Booking Has Been Confirmed", booking.email),
           html: userConfirmationHtml,
         }).catch((error) => {
           console.error('Failed to send user confirmation email:', error);
@@ -424,6 +426,19 @@ exports.confirmDeleteBooking = async (req, res) => {
       console.error('Failed to delete Zoho Calendar event:', error.response?.data || error.message);
       // Continue — the booking should still be removed from our DB even
       // if the calendar call failed.
+    }
+
+    // Let the customer know their booking is gone — sent before the DB
+    // delete so the booking's fields are still available to fill the
+    // template. Best-effort: a failed email shouldn't block the delete.
+    if (booking.email) {
+      await sendEmail({
+        to: resolveCustomerRecipient(booking.email),
+        subject: resolveCustomerSubject("Your Booking at Car Saloon Has Been Cancelled", booking.email),
+        html: getBookingDeletedEmail(booking),
+      }).catch((error) => {
+        console.error('Failed to send booking-deleted email to customer:', error);
+      });
     }
 
     const summary = `Booking ${booking.booking_id || ''} for ${booking.vehicle_registration || 'the vehicle'} has been deleted and removed from the calendar.`;

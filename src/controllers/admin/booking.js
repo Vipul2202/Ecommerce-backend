@@ -11,6 +11,7 @@ const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
 const { upsertBookingCalendarEvent, deleteBookingCalendarEvent } = require("../../utils/zohoCalendar");
 const { notifyOwners } = require("../../utils/ownerNotify");
+const { resolveCustomerRecipient, resolveCustomerSubject } = require("../../utils/customerEmailTestMode");
 const utils = require("../../utils/utils");
 exports.bookingList = async (req, res) => {
   try {
@@ -68,8 +69,8 @@ exports.changeBookingStatus = async (req, res) => {
 
       if (isRescheduleApproval) {
         await sendEmail({
-          to: booking.email,
-          subject: "Your Booking Has Been Rescheduled",
+          to: resolveCustomerRecipient(booking.email),
+          subject: resolveCustomerSubject("Your Booking Has Been Rescheduled", booking.email),
           html: getBookingRescheduleConfirmedEmail(booking),
         });
         await notifyOwners({
@@ -105,8 +106,8 @@ exports.changeBookingStatus = async (req, res) => {
 
         const html = getBookingApprovalEmail(datatosend);
         await sendEmail({
-          to: booking.email,
-          subject: "Your Booking has been approved",
+          to: resolveCustomerRecipient(booking.email),
+          subject: resolveCustomerSubject("Your Booking has been approved", booking.email),
           html,
         });
 
@@ -156,8 +157,8 @@ exports.changeBookingStatus = async (req, res) => {
       };
       const html = getBookingCancellationEmail(datatosend);
       await sendEmail({
-        to: booking.email,
-        subject: "Your Booking has been cancelled",
+        to: resolveCustomerRecipient(booking.email),
+        subject: resolveCustomerSubject("Your Booking has been cancelled", booking.email),
         html,
       });
       return res.status(200).json({ message: "Booking status updated successfully" });
