@@ -3,28 +3,47 @@
  * One-off test: does Zoho Mail API's send-message endpoint accept a
  * "replyTo" field, or does it reject the whole request?
  *
- * Sends exactly ONE test email to the address you pass in (or
- * REMINDER_TEST_EMAIL from .env if you don't pass one) with a replyTo
- * header set to a dummy address. Does not touch the database, does not
- * email any real customer.
+ * Sends exactly TWO test emails to an address you type in by hand at the
+ * confirmation prompt — never a silent fallback to REMINDER_TEST_EMAIL or
+ * any other env var, specifically so this can never accidentally email a
+ * real customer just because .env happens to point somewhere unsafe right
+ * now. Does not touch the database.
  *
  * Usage:
- *   node test-zoho-replyto.js
  *   node test-zoho-replyto.js your-test-inbox@example.com
+ * (an address is REQUIRED — the script refuses to run without one, and
+ * asks you to re-type it to confirm before sending anything)
  */
 
 require('dotenv').config();
 const axios = require('axios');
+const readline = require('readline');
 
-const TEST_RECIPIENT = process.argv[2] || process.env.REMINDER_TEST_EMAIL;
+const TEST_RECIPIENT = process.argv[2];
+
+const confirm = (question) => new Promise((resolve) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  rl.question(question, (answer) => {
+    rl.close();
+    resolve(answer);
+  });
+});
 
 async function run() {
   if (!TEST_RECIPIENT) {
-    console.error('No recipient: pass one as an argument, or set REMINDER_TEST_EMAIL in .env');
+    console.error('Usage: node test-zoho-replyto.js your-test-inbox@example.com');
+    console.error('An address is required — this script will NOT fall back to REMINDER_TEST_EMAIL or any other .env value.');
     process.exit(1);
   }
   if (!process.env.ZOHO_CLIENT_ID || !process.env.ZOHO_CLIENT_SECRET || !process.env.ZOHO_REFRESH_TOKEN) {
     console.error('Missing ZOHO_CLIENT_ID / ZOHO_CLIENT_SECRET / ZOHO_REFRESH_TOKEN in .env');
+    process.exit(1);
+  }
+
+  console.log(`This will send 2 test emails to: ${TEST_RECIPIENT}`);
+  const typedBack = await confirm('Type that exact address again to confirm, or anything else to abort: ');
+  if (typedBack.trim().toLowerCase() !== TEST_RECIPIENT.trim().toLowerCase()) {
+    console.log('Addresses did not match — aborting, nothing was sent.');
     process.exit(1);
   }
 
