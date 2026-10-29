@@ -8,7 +8,7 @@ const {
 const Booking = require('../../models/booking')
 const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
-const { upsertBookingCalendarEvent } = require("../../utils/zohoCalendar");
+const { upsertBookingCalendarEvent, deleteBookingCalendarEvent } = require("../../utils/zohoCalendar");
 const { notifyOwners } = require("../../utils/ownerNotify");
 const utils = require("../../utils/utils");
 
@@ -177,6 +177,11 @@ exports.confirmBooking = async (req, res) => {
       console.error('Failed to sync Zoho Calendar event:', error.response?.data || error.message);
     }
 
+    // Lets the owner/location notification offer a one-click way to delete
+    // the booking (and its calendar event) after confirmation, without
+    // needing to log into the owner panel.
+    const deleteLink = `https://api.carsaloon.com.au/user/delete-booking/${booking._id}`;
+
     if (isRescheduleApproval) {
       // ── Customer: reschedule confirmed ─────────────────────────
       if (booking.email) {
@@ -193,7 +198,17 @@ exports.confirmBooking = async (req, res) => {
       await notifyOwners({
         booking,
         subject: `Reschedule Approved - ${booking.vehicle_registration}`,
-        html: getAdminRescheduleApprovedEmail(booking),
+        html: getAdminRescheduleApprovedEmail({
+          location: booking.location,
+          vehicle_registration: booking.vehicle_registration,
+          services: booking.services,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          first_name: booking.first_name,
+          email: booking.email,
+          phone: booking.phone,
+          deleteLink,
+        }),
       });
     } else {
       const datatosend = {
@@ -240,7 +255,8 @@ exports.confirmBooking = async (req, res) => {
         email: booking.email,
         phone: booking.phone,
         booking_status: booking.booking_status,
-        link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`
+        link: `https://api.carsaloon.com.au/user/confirm-booking/${booking._id}`,
+        deleteLink,
       };
 
       const adminHtml = getAdminNewBookingEmail(adminNotificationData);
@@ -304,6 +320,116 @@ exports.confirmBooking = async (req, res) => {
       </html>
     `);
 
+  } catch (error) {
+    utils.handleError(res, error);
+  }
+};
+
+const renderMessagePage = (title, message, { color = '#2b5f8a', bg = '#eef6ff', border = '#a6c8e0' } = {}) => `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <style>
+      body { font-family: Arial, sans-serif; background-color: #f4f8fb; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+      .message-box { background-color: ${bg}; border: 1px solid ${border}; padding: 30px 40px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; max-width: 420px; }
+      .message-box h1 { color: ${color}; margin-bottom: 10px; }
+      .message-box p { color: #3d3d3d; font-size: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="message-box">
+      <h1>${title}</h1>
+      <p>${message}</p>
+    </div>
+  </body>
+  </html>
+`;
+
+const renderDeleteConfirmPage = (booking) => `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Delete Booking</title>
+    <style>
+      body { font-family: Arial, sans-serif; background-color: #f4f8fb; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+      .box { background-color: #fff3f3; border: 1px solid #e3a6a6; padding: 30px 40px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; max-width: 440px; }
+      .box h1 { color: #a02b2b; margin-bottom: 10px; }
+      .box p { color: #3d3d3d; font-size: 15px; }
+      table { margin: 16px auto; text-align: left; font-size: 14px; color: #333; }
+      td { padding: 2px 10px 2px 0; }
+      .btn { display: inline-block; padding: 12px 24px; border-radius: 5px; font-weight: bold; text-decoration: none; margin: 6px; border: none; font-size: 15px; cursor: pointer; }
+      .btn-delete { background-color: #dc3545; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h1>Delete This Booking?</h1>
+      <p>This will permanently remove the booking and its calendar event. This cannot be undone.</p>
+      <table>
+        <tr><td><strong>Booking ID:</strong></td><td>${booking.booking_id || booking._id}</td></tr>
+        <tr><td><strong>Vehicle:</strong></td><td>${booking.vehicle_registration || 'N/A'}</td></tr>
+        <tr><td><strong>Customer:</strong></td><td>${booking.first_name || 'N/A'}</td></tr>
+        <tr><td><strong>Location:</strong></td><td>${booking.location || 'N/A'}</td></tr>
+      </table>
+      <form method="POST" action="/user/delete-booking/${booking._id}/confirm" style="display:inline;">
+        <button type="submit" class="btn btn-delete">Yes, Delete Booking</button>
+      </form>
+    </div>
+  </body>
+  </html>
+`;
+
+// ── Step 1: GET — shows a confirmation page before anything is deleted.
+// Keeping delete behind an explicit button click (rather than deleting on
+// GET) avoids accidental deletion from email link-scanners/safe-link
+// checkers that auto-visit links in incoming mail.
+exports.requestDeleteBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).send(renderMessagePage(
+        "Booking Not Found",
+        "This booking no longer exists — it may have already been deleted.",
+        { color: '#a02b2b', bg: '#fff3f3', border: '#e3a6a6' }
+      ));
+    }
+    return res.status(200).send(renderDeleteConfirmPage(booking));
+  } catch (error) {
+    utils.handleError(res, error);
+  }
+};
+
+// ── Step 2: POST — the actual delete. Removes the Zoho Calendar event
+// first (best-effort; a calendar failure shouldn't block the DB delete),
+// then removes the booking itself.
+exports.confirmDeleteBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).send(renderMessagePage(
+        "Booking Not Found",
+        "This booking no longer exists — it may have already been deleted.",
+        { color: '#a02b2b', bg: '#fff3f3', border: '#e3a6a6' }
+      ));
+    }
+
+    try {
+      await deleteBookingCalendarEvent(booking);
+    } catch (error) {
+      console.error('Failed to delete Zoho Calendar event:', error.response?.data || error.message);
+      // Continue — the booking should still be removed from our DB even
+      // if the calendar call failed.
+    }
+
+    const summary = `Booking ${booking.booking_id || ''} for ${booking.vehicle_registration || 'the vehicle'} has been deleted and removed from the calendar.`;
+    await Booking.findByIdAndDelete(booking._id);
+
+    return res.status(200).send(renderMessagePage("Booking Deleted", summary, { color: '#2b7a2b', bg: '#e0f9e0', border: '#a6d8a8' }));
   } catch (error) {
     utils.handleError(res, error);
   }

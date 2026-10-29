@@ -292,6 +292,7 @@ exports.getAdminNewBookingEmail = (booking) => {
     phone,
     booking_status,
     link,
+    deleteLink,
   } = booking;
  const formatDate = (date) => {
   if (!(date instanceof Date)) return date;
@@ -306,7 +307,14 @@ exports.getAdminNewBookingEmail = (booking) => {
   const isApproved = booking_status === 'approved';
   const title = isApproved ? "Booking Confirmed" : "New Booking Received";
   const statusColor = isApproved ? "#28a745" : "#ffc107"; // Green for approved, Yellow for pending
-  const actionButton = isApproved ? '' : `
+  const actionButton = isApproved
+    ? (deleteLink ? `
+            <div style="margin-top: 40px; text-align: center;">
+              <a href="${deleteLink}" style="background-color: #dc3545; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Delete Booking
+              </a>
+            </div>` : '')
+    : `
             <div style="margin-top: 40px; text-align: center;">
               <a href="${link}" style="background-color: #28a745; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
                 Confirm Booking
@@ -633,7 +641,14 @@ exports.getBookingRescheduleConfirmedEmail = (booking) => {
 // Sent to admin + the booking's location once a reschedule request is
 // approved, confirming the final new date/time/services for their records.
 exports.getAdminRescheduleApprovedEmail = (booking) => {
-  const { location, vehicle_registration, services, booking_date, booking_time, first_name, email, phone } = booking;
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name, email, phone, deleteLink } = booking;
+
+  const actionButton = deleteLink ? `
+            <div style="margin-top: 32px; text-align: center;">
+              <a href="${deleteLink}" style="background-color: #dc3545; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Delete Booking
+              </a>
+            </div>` : '';
 
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
@@ -658,6 +673,7 @@ exports.getAdminRescheduleApprovedEmail = (booking) => {
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
             </table>
+            ${actionButton}
           </td>
         </tr>
         <tr>

@@ -4,11 +4,12 @@ const {
   getBookingCancellationEmail,
   getBookingRescheduleConfirmedEmail,
   getAdminRescheduleApprovedEmail,
+  getAdminNewBookingEmail,
 } = require("../../../public/Email Templates/forgotpassword");
 const Booking = require("../../models/booking");
 const User = require("../../models/user");
 const { sendEmail } = require("../../utils/sendemail");
-const { upsertBookingCalendarEvent } = require("../../utils/zohoCalendar");
+const { upsertBookingCalendarEvent, deleteBookingCalendarEvent } = require("../../utils/zohoCalendar");
 const { notifyOwners } = require("../../utils/ownerNotify");
 const utils = require("../../utils/utils");
 exports.bookingList = async (req, res) => {
@@ -60,6 +61,11 @@ exports.changeBookingStatus = async (req, res) => {
         console.error('Failed to sync Zoho Calendar event:', error.response?.data || error.message);
       }
 
+      // Lets the owner/location notification offer a one-click way to delete
+      // the booking (and its calendar event) after confirmation — same link
+      // used by the email-based "Confirm Booking" approval flow.
+      const deleteLink = `https://api.carsaloon.com.au/user/delete-booking/${booking._id}`;
+
       if (isRescheduleApproval) {
         await sendEmail({
           to: booking.email,
@@ -69,7 +75,17 @@ exports.changeBookingStatus = async (req, res) => {
         await notifyOwners({
           booking,
           subject: `Reschedule Approved - ${booking.vehicle_registration}`,
-          html: getAdminRescheduleApprovedEmail(booking),
+          html: getAdminRescheduleApprovedEmail({
+            location: booking.location,
+            vehicle_registration: booking.vehicle_registration,
+            services: booking.services,
+            booking_date: booking.booking_date,
+            booking_time: booking.booking_time,
+            first_name: booking.first_name,
+            email: booking.email,
+            phone: booking.phone,
+            deleteLink,
+          }),
         });
       } else {
         const datatosend = {
@@ -92,6 +108,28 @@ exports.changeBookingStatus = async (req, res) => {
           to: booking.email,
           subject: "Your Booking has been approved",
           html,
+        });
+
+        // Approving via the owner panel previously never notified the
+        // admin/location at all (only the "Confirm Booking" email-link flow
+        // did) — bring it in line so both approval paths send the same
+        // owner-facing notification, including the Delete Booking link.
+        await notifyOwners({
+          booking,
+          subject: `Booking Approved - ${booking.vehicle_registration}`,
+          html: getAdminNewBookingEmail({
+            booking_id: booking.booking_id,
+            location: booking.location,
+            vehicle_registration: booking.vehicle_registration,
+            services: booking.services,
+            booking_date: booking.booking_date,
+            booking_time: booking.booking_time,
+            first_name: booking.first_name,
+            email: booking.email,
+            phone: booking.phone,
+            booking_status: booking.booking_status,
+            deleteLink,
+          }),
         });
       }
 
@@ -149,6 +187,16 @@ exports.deleteBookings = async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ message: "Provide at least one booking id to delete" });
     }
+
+    const bookings = await Booking.find({ _id: { $in: ids } });
+    await Promise.all(
+      bookings.map((booking) =>
+        deleteBookingCalendarEvent(booking).catch((error) => {
+          console.error(`Failed to delete Zoho Calendar event for booking ${booking._id}:`, error.response?.data || error.message);
+        })
+      )
+    );
+
     const result = await Booking.deleteMany({ _id: { $in: ids } });
     return res.status(200).json({
       message: "Booking(s) deleted successfully",
