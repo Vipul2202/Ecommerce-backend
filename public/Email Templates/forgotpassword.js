@@ -535,6 +535,47 @@ exports.getOwnerBookingCancelledByCustomerEmail = (booking) => {
   `;
 };
 
+// Sent to the customer when the owner deletes their booking via the
+// Delete Booking link in the admin/location confirmation email.
+exports.getBookingDeletedEmail = (booking) => {
+  const { location, vehicle_registration, services, booking_date, booking_time, first_name } = booking;
+
+  return `
+    <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding: 20px 30px; background-color: #dc3545; color: #ffffff;">
+            <h1 style="margin: 0; font-size: 24px;">Booking Cancelled</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hello ${first_name},</p>
+            <p style="font-size: 15px; color: #555;">
+              We're writing to let you know that your booking below has been cancelled.
+            </p>
+            <table style="font-size: 15px; color: #333; margin-top: 20px;">
+              <tr><td><strong>Booking Location:</strong></td><td>${location}</td></tr>
+              <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Services:</strong></td><td>${formatServicesList(services)}</td></tr>
+              <tr><td><strong>Booking Date:</strong></td><td>${formatDateDDMMYYYY(booking_date)}</td></tr>
+              <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
+            </table>
+            <p style="margin-top: 30px; font-size: 14px; color: #777;">
+              If this was unexpected, or you'd like to make a new booking, please contact us directly or book again online.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 20px 30px; background-color: #f0f0f0; text-align: center; color: #666; font-size: 13px;">
+            &copy; ${new Date().getFullYear()} CarSaloon. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+};
+
 // Sent to admin + the booking's location when a customer requests a
 // reschedule online. The booking goes back to "pending" — this needs the
 // owner's approval before the customer's new time is confirmed.
