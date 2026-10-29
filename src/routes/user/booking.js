@@ -6,6 +6,8 @@ const trimRequest =require('trim-request')
 const Auth=require('../../middleware/auth')
 router.post("/create-booking",trimRequest.all,controller.createBooking)
 router.get("/confirm-booking/:id",trimRequest.all,controller.confirmBooking)
+router.get("/delete-booking/:id",trimRequest.all,controller.requestDeleteBooking)
+router.post("/delete-booking/:id/confirm",trimRequest.all,controller.confirmDeleteBooking)
 
 router.get("/manage-booking/:id",trimRequest.all,manageController.getManageBooking)
 router.post("/manage-booking/:id/cancel",trimRequest.all,manageController.cancelBookingByCustomer)
