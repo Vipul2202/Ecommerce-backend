@@ -172,6 +172,11 @@ exports.getBookingApprovalEmail = (booking) => {
   return `${day}-${month}-${year}`;
 };
 
+  // Customer already ticked these as acknowledgments in the booking form's
+  // confirm popup, so the email shows them back as a completed checklist
+  // rather than presenting the notices as new information.
+  const tickedBox = `<span style="display:inline-block; width:16px; height:16px; background-color:#2f8a52; border-radius:3px; text-align:center; line-height:16px; color:#ffffff; font-size:12px; font-weight:bold; margin-right:8px; vertical-align:middle;">&#10003;</span>`;
+
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 30px;">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -187,24 +192,24 @@ exports.getBookingApprovalEmail = (booking) => {
               We are pleased to inform you that your booking has been <strong>approved</strong>. Below are your booking details:
             </p>
             <table style="font-size: 15px; color: #333; margin-top: 20px;">
-              
+
               <tr><td><strong>Booking Location:</strong></td><td><b>${location}</b></td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
-              
+
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td style="color: green;"><strong>${booking_status}</strong></td></tr>
-             
+
             </table>
             <p style="margin-top: 30px; font-size: 14px; color: #555; background-color: #eef6ff; border-left: 4px solid #007bff; padding: 12px 16px; border-radius: 4px;">
-              <b>Note</b> - Heavily soiled vehicles(mud,sand,pet hair,stains,rubbish or biohazards) will incur an additional <b style="color: green;">surcharge</b> depending on the condition.
+              ${tickedBox}<b>You confirmed when booking</b> - heavily soiled vehicles (mud, sand, pet hair, stains, rubbish or biohazards) will incur an additional <b style="color: green;">surcharge</b> depending on the condition.
               We will advise you of any additional cost before we start the cleaning.
             </p>
             <p style="margin-top: 16px; font-size: 14px; color: #7a4b00; background-color: #fff8e6; border-left: 4px solid #f0ad4e; padding: 12px 16px; border-radius: 4px;">
-              Please remove all valuables from your car. We practice safe cleaning and try not to touch anything but we are not responsible for the loss of any personal or valuable item.
+              ${tickedBox}<b>You confirmed when booking</b> - please remove all valuables from your car. We practice safe cleaning and try not to touch anything but we are not responsible for the loss of any personal or valuable item.
             </p>
             <p style="margin-top: 30px; font-size: 14px; color: #777;">
               If you have any questions or need to make changes to your booking, feel free to contact us.
