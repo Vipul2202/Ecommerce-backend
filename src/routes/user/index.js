@@ -8,5 +8,6 @@ router.use(require('./cart'))
 router.use(require('./order'))
 
 router.use(require('./category'))
+router.use(require('./servicePrice'))
 
 module.exports = router
