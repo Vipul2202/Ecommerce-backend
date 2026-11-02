@@ -1,9 +1,11 @@
 const ServicePrice = require("../models/servicePrice");
 
 // Current live prices, matching the physical in-store price list as of
-// Oct 2026. This only ever runs once — if the collection already has
-// rows, it's a no-op, so it never overwrites prices the owner has since
-// changed from the admin panel.
+// Oct 2026. Runs on every connect, but only inserts services whose key
+// isn't already in the collection — it never touches or overwrites a
+// price the owner has since changed from the admin panel. This also
+// means a newly added service (new key added here later) gets created
+// automatically next deploy, without wiping anything else out.
 const DEFAULT_PRICES = [
   { key: "outside", category: "tier", label: "Outside Only", sedan: 35, suv: 45, fourWd: 55 },
   { key: "inside_outside", category: "tier", label: "Inside & Out", sedan: 55, suv: 65, fourWd: 75 },
@@ -25,14 +27,17 @@ const DEFAULT_PRICES = [
   { key: "leather_steam_clean", category: "extra", label: "Leather Clean & Steam Clean", flatPrice: 70 },
   { key: "dog_hair_removal", category: "extra", label: "Dog Hair Removal", flatPrice: 50 },
   { key: "bull_bar_polish", category: "extra", label: "Bull Bar Polish", flatPrice: 149 },
+  { key: "antibacterial_aircon_treatment", category: "extra", label: "Antibacterial Aircon Treatment", flatPrice: 100 },
 ];
 
 module.exports = async function seedServicePrices() {
   try {
-    const count = await ServicePrice.countDocuments();
-    if (count > 0) return;
-    await ServicePrice.insertMany(DEFAULT_PRICES);
-    console.log(`Seeded ${DEFAULT_PRICES.length} service prices`);
+    const existing = await ServicePrice.find().select("key").lean();
+    const existingKeys = new Set(existing.map((p) => p.key));
+    const missing = DEFAULT_PRICES.filter((p) => !existingKeys.has(p.key));
+    if (missing.length === 0) return;
+    await ServicePrice.insertMany(missing);
+    console.log(`Seeded ${missing.length} service price(s): ${missing.map((p) => p.key).join(", ")}`);
   } catch (error) {
     console.error("Error seeding service prices:", error.message);
   }
