@@ -27,7 +27,7 @@ const DEFAULT_PRICES = [
   { key: "leather_steam_clean", category: "extra", label: "Leather Clean & Steam Clean", flatPrice: 70 },
   { key: "dog_hair_removal", category: "extra", label: "Dog Hair Removal", flatPrice: 50 },
   { key: "bull_bar_polish", category: "extra", label: "Bull Bar Polish", flatPrice: 149 },
-  { key: "antibacterial_aircon_treatment", category: "extra", label: "Antibacterial Aircon Treatment", flatPrice: 100 },
+  { key: "antibacterial_aircon_treatment", category: "extra", label: "Antibacterial Aircon Treatment", flatPrice: 99 },
 ];
 
 module.exports = async function seedServicePrices() {
