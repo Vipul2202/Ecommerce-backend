@@ -16,7 +16,7 @@ const DEFAULT_PRICES = [
   { key: "signature_detail", category: "tier", label: "Signature Detail", sedan: 275, suv: 295, fourWd: 325 },
   { key: "the_works", category: "tier", label: "The Works", sedan: 349, suv: 399, fourWd: 449 },
 
-  { key: "ceramic_coating", category: "premium", label: "Ceramic Coating", flatPrice: 499, quoteOnly: true },
+  { key: "ceramic_coating", category: "premium", label: "Ceramic Coating", flatPrice: 499, quoteOnly: false },
   { key: "interior_protection_pack", category: "premium", label: "Interior Protection Pack", flatPrice: 299 },
   { key: "window_tinting", category: "premium", label: "Window Tinting", flatPrice: 499 },
   { key: "paintless_dent_removal", category: "premium", label: "Paintless Dent Removal", flatPrice: 199 },
