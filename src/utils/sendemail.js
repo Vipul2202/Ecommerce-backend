@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { Resend } = require('resend');
+const EmailFailure = require('../models/emailFailure');
 
 // Resend API Configuration (works on DigitalOcean)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -238,11 +239,35 @@ const sendEmailViaZohoAPI = async (emailData) => {
     }
   }
 
+  // Throw (not return false) so callers that retry/fall-back on failure -
+  // see withRetries() and sendEmail() below - actually get to do that.
+  // A plain `false` here used to look like "nothing to retry, done",
+  // silently skipping the Resend fallback.
   logEmail('ERROR', 'All Zoho API attempts failed');
-  return false;
+  throw new Error('All Zoho API attempts failed');
 };
 
 // SMTP path intentionally removed per deployment policy (DigitalOcean blocks SMTP). Using Zoho API / Resend only.
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Retries a flaky operation a few times before giving up, so a brief
+// hiccup (e.g. Zoho's API failing to resolve an account for a moment,
+// which is what silently dropped a real owner notification) doesn't
+// cost an email outright. Waits a bit longer between each retry.
+const withRetries = async (fn, { attempts = 3, delayMs = 1500, label = 'operation' } = {}) => {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      logEmail('ERROR', `${label} failed (attempt ${attempt}/${attempts}):`, { message: error.message });
+      if (attempt < attempts) await sleep(delayMs * attempt);
+    }
+  }
+  throw lastError;
+};
 
 // Main email sending function
 exports.sendEmail = async ({ to, subject, html }) => {
@@ -261,14 +286,20 @@ exports.sendEmail = async ({ to, subject, html }) => {
   }
 
   const emailData = { to, subject, html };
-  
+  let lastError;
+
   // Prefer Zoho Mail API when refresh_token is configured (no SMTP, DO-friendly)
   if (process.env.ZOHO_REFRESH_TOKEN && process.env.ZOHO_CLIENT_ID && process.env.ZOHO_CLIENT_SECRET) {
     try {
       logEmail('INFO', `Zoho Mail API attempt to: ${to}`);
-      return await sendEmailViaZohoAPI(emailData);
+      return await withRetries(() => sendEmailViaZohoAPI(emailData), {
+        attempts: 3,
+        delayMs: 1500,
+        label: `Zoho Mail API (to: ${to})`,
+      });
     } catch (error) {
-      logEmail('ERROR', 'Zoho Mail API failed, checking Resend next:', error.message);
+      lastError = error;
+      logEmail('ERROR', 'Zoho Mail API failed after retries, checking Resend next:', error.message);
     }
   }
 
@@ -278,6 +309,7 @@ exports.sendEmail = async ({ to, subject, html }) => {
       logEmail('INFO', `Resend API attempt to: ${to}`);
       return await sendEmailViaResend(emailData);
     } catch (error) {
+      lastError = error;
       logEmail('ERROR', 'Resend API failed, trying SMTP fallback:', error.message);
     }
   } else {
@@ -286,6 +318,21 @@ exports.sendEmail = async ({ to, subject, html }) => {
 
   // No SMTP fallback (blocked on DigitalOcean). All DO-friendly methods failed.
   logEmail('ERROR', 'All DO-friendly email methods failed (Zoho API / Resend)');
+
+  // Record it so this shows up in the owner panel instead of only this
+  // console log - best-effort: a DB hiccup here must never make an
+  // already-failed send throw and break the caller's flow further.
+  try {
+    await EmailFailure.create({
+      to,
+      subject,
+      html,
+      error: lastError?.message || 'All email send methods failed',
+    });
+  } catch (logError) {
+    logEmail('ERROR', 'Failed to record email failure in DB:', logError.message);
+  }
+
   return false;
 };
 

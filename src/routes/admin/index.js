@@ -8,6 +8,7 @@ router.use(require('./order'))
 router.use(require('./reminderRectification'))
 router.use(require('./reminderActivity'))
 router.use(require('./servicePrice'))
+router.use(require('./emailFailures'))
 
 
 module.exports = router
