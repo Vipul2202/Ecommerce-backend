@@ -77,6 +77,8 @@ exports.createBooking = async (req, res) => {
       first_name: data.firstName.trim(),
       location: data.location,
       vehicle_registration: data.registration.trim().toUpperCase(),
+      car_type: data.vehicleType,
+      estimated_total: data.estimatedTotal,
       services: data.services,
       booking_date: data.date,
       booking_time: data.time,
@@ -88,6 +90,8 @@ exports.createBooking = async (req, res) => {
     const adminNotificationData = {
       booking_id: booking.booking_id,
       vehicle_registration: booking.vehicle_registration,
+      car_type: booking.car_type,
+      estimated_total: booking.estimated_total,
       services: booking.services,
       booking_date: booking.booking_date,
       booking_time: booking.booking_time,
@@ -216,6 +220,7 @@ exports.confirmBooking = async (req, res) => {
       const datatosend = {
         booking_id: booking.booking_id,
         car_type: booking.car_type,
+        estimated_total: booking.estimated_total,
         vehicle_registration: booking.vehicle_registration,
         location: booking.location,
         services: booking.services,
@@ -249,6 +254,8 @@ exports.confirmBooking = async (req, res) => {
       const adminNotificationData = {
         booking_id: booking.booking_id,
         vehicle_registration: booking.vehicle_registration,
+        car_type: booking.car_type,
+        estimated_total: booking.estimated_total,
         location: booking.location,
         services: booking.services,
         booking_date: booking.booking_date,

@@ -9,6 +9,9 @@ const bookingSchema=new mongoose.Schema({
     car_type:{
         type:String
     },
+    estimated_total:{
+        type:String
+    },
     location: {
     type: String,
     required: true,
