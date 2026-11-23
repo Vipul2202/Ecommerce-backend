@@ -152,15 +152,17 @@ exports.getBookingApprovalEmail = (booking) => {
     booking_id,
     location,
     vehicle_registration,
+    car_type,
+    estimated_total,
     services,
     booking_date,
     booking_time,
     first_name,
-    
+
     email,
     phone,
     booking_status,
-    
+
   } = booking;
  const formatDate = (date) => {
   if (!(date instanceof Date)) return date;
@@ -190,6 +192,7 @@ exports.getBookingApprovalEmail = (booking) => {
 
               <tr><td><strong>Booking Location:</strong></td><td><b>${location}</b></td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Vehicle Type:</strong></td><td>${car_type || 'N/A'}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
 
@@ -197,6 +200,7 @@ exports.getBookingApprovalEmail = (booking) => {
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td style="color: green;"><strong>${booking_status}</strong></td></tr>
+              <tr><td><strong>Est. Total:</strong></td><td>${estimated_total || 'N/A'}</td></tr>
 
             </table>
             <p style="margin-top: 20px; font-size: 14px; color: #555;">
@@ -283,6 +287,8 @@ exports.getAdminNewBookingEmail = (booking) => {
     booking_id,
     location,
     vehicle_registration,
+    car_type,
+    estimated_total,
     services,
     booking_date,
     booking_time,
@@ -343,14 +349,16 @@ exports.getAdminNewBookingEmail = (booking) => {
              
              <tr><td><strong>Booking Location :</strong></td><td>${location}</td></tr>
               <tr><td><strong>Vehicle Registration:</strong></td><td>${vehicle_registration}</td></tr>
+              <tr><td><strong>Vehicle Type:</strong></td><td>${car_type || 'N/A'}</td></tr>
               <tr><td><strong>Services:</strong></td><td>${services && Array.isArray(services) ? services.join(', ') : services || 'N/A'}</td></tr>
               <tr><td><strong>Booking Date:</strong></td><td>${formatDate(booking_date)}</td></tr>
-            
+
               <tr><td><strong>Booking Time:</strong></td><td>${booking_time}</td></tr>
               <tr><td><strong>Customer Name:</strong></td><td>${first_name} </td></tr>
               <tr><td><strong>Email:</strong></td><td>${email}</td></tr>
               <tr><td><strong>Phone:</strong></td><td>${phone}</td></tr>
               <tr><td><strong>Status:</strong></td><td><strong style="color: ${statusColor};">${booking_status}</strong></td></tr>
+              <tr><td><strong>Est. Total:</strong></td><td>${estimated_total || 'N/A'}</td></tr>
             </table>
 
             ${actionButton}

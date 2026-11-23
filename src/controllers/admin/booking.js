@@ -92,6 +92,7 @@ exports.changeBookingStatus = async (req, res) => {
         const datatosend = {
           booking_id: booking.booking_id,
           car_type: booking.car_type,
+          estimated_total: booking.estimated_total,
           vehicle_registration: booking.vehicle_registration,
           services: booking.services,
           booking_date: booking.booking_date,
@@ -122,6 +123,8 @@ exports.changeBookingStatus = async (req, res) => {
             booking_id: booking.booking_id,
             location: booking.location,
             vehicle_registration: booking.vehicle_registration,
+            car_type: booking.car_type,
+            estimated_total: booking.estimated_total,
             services: booking.services,
             booking_date: booking.booking_date,
             booking_time: booking.booking_time,
